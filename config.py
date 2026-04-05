@@ -1,7 +1,7 @@
 """
-config.py — Load credentials and build API auth for SF Position Integrity Checker.
+config.py — Load credentials and configuration for SF Position Integrity Checker.
 
-Credential resolution order (first source that provides all required values wins):
+Credential resolution order for Basic Auth (first source that provides all required values wins):
   1. .env file  (existing behaviour — unaffected for current users)
   2. OS keyring via the `keyring` library
   3. Interactive prompt (offers to save to keyring for next time)
@@ -11,104 +11,118 @@ To store credentials in the OS keyring once:
     store_credentials_to_keyring()
 """
 
-import base64
 import os
-from typing import Optional, Tuple
 
 from dotenv import load_dotenv
 
 load_dotenv()
 
+# ---------------------------------------------------------------------------
+# Auth method
+# ---------------------------------------------------------------------------
+
+AUTH_METHOD: str = os.getenv("SF_AUTH_METHOD", "basic").lower().strip()
+
+if AUTH_METHOD not in ("basic", "oauth2"):
+    raise ValueError(
+        f"SF_AUTH_METHOD must be 'basic' or 'oauth2', got '{AUTH_METHOD}'"
+    )
+
+# ---------------------------------------------------------------------------
+# OAuth2 config values (loaded unconditionally so missing-var errors surface early)
+# ---------------------------------------------------------------------------
+
+OAUTH2_CLIENT_ID       = os.getenv("SF_CLIENT_ID", "")
+OAUTH2_COMPANY_ID      = os.getenv("SF_COMPANY_ID", "")
+OAUTH2_USER_ID         = os.getenv("SF_USER_ID", "")
+OAUTH2_TOKEN_URL       = os.getenv("SF_TOKEN_URL", "")
+OAUTH2_PRIVATE_KEY_PATH = os.getenv("SF_PRIVATE_KEY_PATH", "")
+
+# ---------------------------------------------------------------------------
+# Base URL resolution
+# ---------------------------------------------------------------------------
+
+_raw_url = (
+    os.environ.get("SF_ODATA_BASE_URL")
+    or os.environ.get("SF_BASE_URL")
+    or ""
+)
+
+# Normalise the URL: strip /odata/v2 suffix if accidentally included in base var,
+# then reconstruct to guarantee the /odata/v2/ suffix is present exactly once.
+_raw_url = _raw_url.rstrip("/")
+if _raw_url.endswith("/odata/v2"):
+    _raw_url = _raw_url[: -len("/odata/v2")]
+
+SF_BASE_URL: str = _raw_url  # e.g. https://api4.successfactors.com
+ODATA_BASE_URL: str = f"{SF_BASE_URL}/odata/v2/" if SF_BASE_URL else ""
+
+# ---------------------------------------------------------------------------
+# Basic Auth credential resolution (lazy — only needed in basic mode)
+# These module-level vars preserve backward compatibility for any code that
+# imports SF_USERNAME / SF_PASSWORD / SF_INSTANCE_ID / HEADERS directly.
+# ---------------------------------------------------------------------------
+
+def _init_basic_auth():
+    """Resolve Basic Auth credentials and populate module-level legacy vars."""
+    from auth.basic import resolve_basic_credentials
+    import base64
+
+    raw_url, username, password, company = resolve_basic_credentials()
+
+    # Normalise URL (same logic as above, in case it was only in keyring/prompt)
+    raw_url = raw_url.rstrip("/")
+    if raw_url.endswith("/odata/v2"):
+        raw_url = raw_url[: -len("/odata/v2")]
+
+    instance_id = company
+    if not instance_id and "@" in username:
+        instance_id = username.split("@")[-1]
+
+    base_username = username.split("@")[0]
+    credential_str = (
+        f"{base_username}@{instance_id}:{password}"
+        if instance_id
+        else f"{base_username}:{password}"
+    )
+    encoded = base64.b64encode(credential_str.encode("utf-8")).decode("utf-8")
+
+    global SF_USERNAME, SF_PASSWORD, SF_INSTANCE_ID, HEADERS, SF_BASE_URL, ODATA_BASE_URL
+    SF_USERNAME    = username
+    SF_PASSWORD    = password
+    SF_INSTANCE_ID = instance_id
+    if raw_url:
+        SF_BASE_URL    = raw_url
+        ODATA_BASE_URL = f"{raw_url}/odata/v2/"
+    HEADERS = {
+        "Authorization": f"Basic {encoded}",
+        "Accept": "application/json",
+        "Content-Type": "application/json",
+    }
+
+
+# Provide sensible defaults so importing modules don't fail at import time
+SF_USERNAME:    str  = os.environ.get("SF_USERNAME", "")
+SF_PASSWORD:    str  = os.environ.get("SF_PASSWORD", "")
+SF_INSTANCE_ID: str  = (
+    os.environ.get("SF_COMPANY_ID")
+    or os.environ.get("SF_INSTANCE_ID")
+    or ""
+)
+HEADERS: dict = {}
+
+if AUTH_METHOD == "basic":
+    _init_basic_auth()
+
+# ---------------------------------------------------------------------------
+# Keyring helper (public API — preserved for backward compatibility)
+# ---------------------------------------------------------------------------
+
 _KEYRING_SERVICE = "sf_position_integrity_checker"
 
-# ---------------------------------------------------------------------------
-# Internal helpers
-# ---------------------------------------------------------------------------
-
-def _try_keyring() -> Tuple[Optional[str], Optional[str], Optional[str], Optional[str]]:
-    """Try to load credentials from the OS keyring. Returns (url, username, password, company_id)."""
-    try:
-        import keyring
-        url      = keyring.get_password(_KEYRING_SERVICE, "base_url")
-        username = keyring.get_password(_KEYRING_SERVICE, "username")
-        password = keyring.get_password(_KEYRING_SERVICE, "password")
-        company  = keyring.get_password(_KEYRING_SERVICE, "company_id")
-        return url, username, password, company
-    except Exception:
-        return None, None, None, None
-
-
-def _prompt_credentials() -> Tuple[str, str, str, str]:
-    """Interactively prompt for credentials and offer to save to keyring."""
-    import getpass
-    print("\n[CONFIG] No credentials found in .env or keyring.")
-    print("         Please enter your SF API credentials:\n")
-    url      = input("  SF OData base URL (e.g. https://api4.successfactors.com/odata/v2/): ").strip()
-    username = input("  SF Username: ").strip()
-    password = getpass.getpass("  SF Password: ")
-    company  = input("  Company ID (leave blank if embedded in username): ").strip()
-
-    save = input("\n  Save to OS keyring for future runs? [y/N]: ").strip().lower()
-    if save == "y":
-        try:
-            import keyring
-            keyring.set_password(_KEYRING_SERVICE, "base_url",   url)
-            keyring.set_password(_KEYRING_SERVICE, "username",   username)
-            keyring.set_password(_KEYRING_SERVICE, "password",   password)
-            keyring.set_password(_KEYRING_SERVICE, "company_id", company)
-            print("  [OK] Credentials saved to keyring.")
-        except Exception as exc:
-            print(f"  [WARN] Could not save to keyring: {exc}")
-
-    return url, username, password, company
-
-
-# ---------------------------------------------------------------------------
-# Credential resolution
-# ---------------------------------------------------------------------------
-
-def _resolve_credentials() -> Tuple[str, str, str, str]:
-    """
-    Resolve (odata_base_url, username, password, company_id) from the first
-    available source: .env → keyring → interactive prompt.
-
-    Supports both the new env var naming (SF_ODATA_BASE_URL / SF_COMPANY_ID)
-    and the legacy naming (SF_BASE_URL / SF_INSTANCE_ID) so existing users
-    are completely unaffected.
-    """
-    # --- 1. Try .env (new var names first, fall back to legacy names) ---
-    env_url = (
-        os.environ.get("SF_ODATA_BASE_URL")
-        or os.environ.get("SF_BASE_URL")
-    )
-    env_username = os.environ.get("SF_USERNAME")
-    env_password = os.environ.get("SF_PASSWORD")
-    env_company  = (
-        os.environ.get("SF_COMPANY_ID")
-        or os.environ.get("SF_INSTANCE_ID")
-    )
-
-    if env_url and env_username and env_password:
-        return env_url, env_username, env_password, env_company or ""
-
-    # --- 2. Try OS keyring ---
-    kr_url, kr_user, kr_pass, kr_company = _try_keyring()
-    if kr_url and kr_user and kr_pass:
-        return kr_url, kr_user, kr_pass, kr_company or ""
-
-    # --- 3. Interactive prompt ---
-    return _prompt_credentials()
-
-
-# ---------------------------------------------------------------------------
-# Public API
-# ---------------------------------------------------------------------------
 
 def store_credentials_to_keyring(
-    url: Optional[str] = None,
-    username: Optional[str] = None,
-    password: Optional[str] = None,
-    company_id: Optional[str] = None,
+    url=None, username=None, password=None, company_id=None
 ) -> None:
     """
     Store SF API credentials in the OS keyring.
@@ -139,45 +153,8 @@ def store_credentials_to_keyring(
 
 
 # ---------------------------------------------------------------------------
-# Module-level credential initialisation
+# Pagination / retry constants
 # ---------------------------------------------------------------------------
 
-_raw_url, SF_USERNAME, SF_PASSWORD, _company = _resolve_credentials()
-
-# Normalise the URL: strip /odata/v2 suffix if accidentally included in base var,
-# then reconstruct to guarantee the /odata/v2/ suffix is present exactly once.
-_raw_url = _raw_url.rstrip("/")
-if _raw_url.endswith("/odata/v2"):
-    _raw_url = _raw_url[: -len("/odata/v2")]
-
-SF_BASE_URL: str = _raw_url  # e.g. https://api4.successfactors.com
-
-# Company/Instance ID — may be embedded in username (legacy format user@companyId)
-# or supplied as a separate env var / keyring entry.
-if _company:
-    SF_INSTANCE_ID: str = _company
-elif "@" in SF_USERNAME:
-    SF_INSTANCE_ID = SF_USERNAME.split("@")[-1]
-else:
-    SF_INSTANCE_ID = ""
-
-# Build Basic Auth token: Base64("{username_base}@{instance_id}:{password}")
-# Strip any trailing @<companyId> from the username before re-appending.
-_base_username = SF_USERNAME.split("@")[0]
-_credential_str = (
-    f"{_base_username}@{SF_INSTANCE_ID}:{SF_PASSWORD}"
-    if SF_INSTANCE_ID
-    else f"{_base_username}:{SF_PASSWORD}"
-)
-_encoded = base64.b64encode(_credential_str.encode("utf-8")).decode("utf-8")
-
-HEADERS: dict = {
-    "Authorization": f"Basic {_encoded}",
-    "Accept": "application/json",
-    "Content-Type": "application/json",
-}
-
-ODATA_BASE_URL: str = f"{SF_BASE_URL}/odata/v2/"
-
-PAGE_SIZE: int = 1000
+PAGE_SIZE:   int = 1000
 MAX_RETRIES: int = 3

@@ -21,12 +21,19 @@ from reporters import VERSION, GITHUB_URL
 # ---------------------------------------------------------------------------
 
 def _print_banner() -> None:
-    width = 67
+    import config
+    width  = 67
     border = "═" * width
     tool   = f"SF Position Integrity Checker  v{VERSION}"
     url    = GITHUB_URL
+    auth_label = (
+        "Auth: OAuth2 SAML Bearer Token"
+        if config.AUTH_METHOD == "oauth2"
+        else "Auth: Basic Auth"
+    )
     print(f"\n╔{border}╗")
     print(f"║{tool.center(width)}║")
+    print(f"║{auth_label.center(width)}║")
     print(f"║{url.center(width)}║")
     print(f"╚{border}╝\n")
 

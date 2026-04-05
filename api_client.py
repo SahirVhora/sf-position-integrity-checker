@@ -9,6 +9,7 @@ from urllib.parse import urlencode
 import requests
 
 import config
+from auth import get_auth_headers
 
 
 def _build_url(entity: str, params: Dict[str, str]) -> str:
@@ -28,7 +29,11 @@ def _get_with_retry(url: str, entity: str) -> Dict[str, Any]:
 
     for attempt, delay in enumerate(delays, start=1):
         try:
-            response = requests.get(url, headers=config.HEADERS, timeout=60)
+            response = requests.get(
+                url,
+                headers={**get_auth_headers(), "Accept": "application/json", "Content-Type": "application/json"},
+                timeout=60,
+            )
 
             if response.status_code == 401:
                 raise RuntimeError(
