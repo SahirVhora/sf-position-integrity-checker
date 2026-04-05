@@ -1,0 +1,73 @@
+# SF Position Integrity Checker — Foundation Object Configuration
+# Adjust entity names and field names to match your SF instance.
+# Custom objects (cust_*) vary between implementations.
+
+position:
+  entity: Position
+  country_field: cust_Country       # Field used to filter positions by country
+  fields:
+    - code
+    - externalName_en_US
+    - effectiveStartDate
+    - effectiveEndDate
+    - effectiveStatus
+    - company
+    - businessUnit
+    - division
+    - department
+    - cust_subDepartment
+    - jobCode
+    - costCenter
+    - location
+    - cust_Country
+    - cust_JobFunction
+    - cust_jobSubFunction
+    - cust_GlobalJobLevel
+    - cust_CareerPath
+
+foundation_objects:
+  company:
+    entity: FOCompany
+    fields: [externalCode, startDate, endDate, status, description, country]
+
+  business_unit:
+    entity: FOBusinessUnit
+    fields: [externalCode, startDate, endDate, status, description]
+    expand: [cust_legalEntity]          # nav-prop for BU → Legal Entity links
+
+  division:
+    entity: FODivision
+    fields: [externalCode, startDate, endDate, status, description]
+    expand: [cust_BusinessUnit]         # nav-prop for Division → BU links
+
+  department:
+    entity: FODepartment
+    fields: [externalCode, startDate, endDate, status, description, parent]
+    expand: [cust_Division]             # nav-prop for Dept → Division links
+    division_field: cust_Division       # preferred field; falls back to 'parent'
+
+  sub_department:
+    entity: cust_SubDepartment
+    # This object uses MDF-style date/status fields — mapped to standard names
+    fields:
+      externalCode: externalCode
+      startDate: effectiveStartDate
+      endDate: mdfSystemEffectiveEndDate
+      status: mdfSystemStatus
+      externalName_en_US: externalName_en_US
+    expand: [cust_Department]
+    status_filter: "mdfSystemStatus eq 'A'"
+
+  job_code:
+    entity: FOJobCode
+    fields: [externalCode, startDate, endDate, status, name_en_US,
+             jobFunction, cust_jobsubfunction, grade, cust_careerPath]
+
+  cost_center:
+    entity: FOCostCenter
+    fields: [externalCode, startDate, endDate, status, description]
+    expand: [cust_BusinessUnit]
+
+  location:
+    entity: FOLocation
+    fields: [externalCode, startDate, endDate, status, description]
