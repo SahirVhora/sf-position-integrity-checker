@@ -58,15 +58,15 @@ This replaces what is currently a manual process — running multiple SF reports
 
 | Check | Description | Severity |
 |-------|-------------|----------|
-| CHK-09 | Sub Department must belong to the Position's Department | CRITICAL |
-| CHK-10 | Department must belong to the Position's Division | CRITICAL |
-| CHK-11 | Division must be linked to the Position's Business Unit | CRITICAL |
-| CHK-12 | Business Unit must be linked to the Position's Legal Entity | CRITICAL |
-| CHK-13 | Cost Centre must be linked to the Position's Business Unit | CRITICAL |
-| CHK-15 | Job Code Job Family must match Position's Job Family | HIGH |
-| CHK-16 | Job Code Sub Family must match Position's Job Sub Family | HIGH |
-| CHK-17 | Job Code Grade must match Position's Global Job Level | HIGH |
-| CHK-18 | Job Code Career Path must match Position's Career Path | HIGH |
+| CHK-01 | Sub Department must belong to the Position's Department | CRITICAL |
+| CHK-02 | Department must belong to the Position's Division | CRITICAL |
+| CHK-03 | Division must be linked to the Position's Business Unit | CRITICAL |
+| CHK-04 | Business Unit must be linked to the Position's Legal Entity | CRITICAL |
+| CHK-05 | Cost Centre must be linked to the Position's Business Unit | CRITICAL |
+| CHK-06 | Job Code Job Family must match Position's Job Family | HIGH |
+| CHK-07 | Job Code Sub Family must match Position's Job Sub Family | HIGH |
+| CHK-08 | Job Code Grade must match Position's Global Job Level | HIGH |
+| CHK-09 | Job Code Career Path must match Position's Career Path | HIGH |
 
 ---
 
@@ -91,7 +91,7 @@ SF Tenant (OData v2)
         │                    can re-validate without re-fetching from SF
         │
         ▼
-  [Phase 4: Rule Engine] ──  config/rules.yaml drives CHK-09 to CHK-18 (configurable)
+  [Phase 4: Rule Engine] ──  config/rules.yaml drives CHK-01 to CHK-09 (configurable)
         │                    Each rule defines the relationship to validate,
         │                    which fields to compare, and the severity if it fails
         │
@@ -207,7 +207,7 @@ Rules are defined in `config/rules.yaml`. You can disable a check or change its 
 
 ```yaml
 rules:
-  - id: CHK-17
+  - id: CHK-08
     enabled: false          # disable this check entirely
     description: "Job Code Grade must match Position's Global Job Level"
     severity: HIGH          # change to CRITICAL if needed
@@ -295,7 +295,7 @@ An offline test suite is included — no SF credentials needed:
 python test_schema.py
 ```
 
-Tests cover: SQLite schema structure, CHECK constraints, date normalisation, junction table population, all integrity checks (CHK-09 to CHK-18 pass + fail cases), validation result persistence, audit SQL views, and pipe-separated junction saving.
+Tests cover: SQLite schema structure, CHECK constraints, date normalisation, junction table population, all integrity checks (CHK-01 to CHK-09 pass + fail cases), validation result persistence, audit SQL views, and pipe-separated junction saving.
 
 ---
 

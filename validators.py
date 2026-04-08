@@ -32,10 +32,16 @@ _ENABLED_RULES: List[Dict[str, Any]] = [r for r in _ALL_RULES if r.get("enabled"
 # CHECK_META is built dynamically from the YAML so reporters can consume it
 # without knowing the rule definitions themselves.
 # 'field' uses position_field (the SF field being validated on the position).
+def _failed_field(rule: Dict[str, Any]) -> str:
+    """Return the position field that should be reported as failing."""
+    if rule.get("type") == "scalar_match" and rule.get("compare_to_position_field"):
+        return rule["compare_to_position_field"]
+    return rule["position_field"]
+
 CHECK_META: Dict[str, Dict[str, str]] = {
     rule["id"]: {
         "category":    rule["category"],
-        "field":       rule["position_field"],
+        "field":       _failed_field(rule),
         "severity":    rule["severity"],
         "description": rule.get("description", ""),
     }
