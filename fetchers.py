@@ -437,6 +437,22 @@ def _sf_date_to_odata_key(raw: Any) -> str:
     return f"datetime'{d.isoformat()}T00:00:00'"
 
 
+def _parse_jobcode_subfunction_response(data: Dict[str, Any]) -> Optional[str]:
+    """Parse the OData JSON response for a job code's cust_jobsubfunction."""
+    if not isinstance(data, dict):
+        return None
+    payload = data.get("d", data)
+    if isinstance(payload, dict):
+        if payload.get("externalCode"):
+            return str(payload["externalCode"]).strip()
+        results = payload.get("results")
+        if isinstance(results, list) and results:
+            first = results[0]
+            if isinstance(first, dict) and first.get("externalCode"):
+                return str(first["externalCode"]).strip()
+    return None
+
+
 def fetch_jobcode_subfunctions(job_code_records: List[Dict]) -> Dict[str, Optional[str]]:
     """
     Retrieve the cust_jobsubfunction code for each job code by directly
@@ -446,14 +462,14 @@ def fetch_jobcode_subfunctions(job_code_records: List[Dict]) -> Dict[str, Option
         /cust_jobsubfunction
 
     SF OData v2 returns cust_jobsubfunction as a deferred navigation property
-    when fetched via $select, so the composite-key nav-prop call is the only
-    reliable way to get the actual code.
+    when fetched via $select, so the composite-key nav-prop call is the preferred
+    path. On bad-request failures, we fall back to a safe expanded query.
 
     Calls are issued concurrently (up to 10 threads) to reduce wall-clock time.
     """
     import concurrent.futures
     import config
-    from api_client import _get_with_retry
+    from api_client import _get_with_retry, fetch_all
 
     total = len(job_code_records)
     if total == 0:
@@ -466,18 +482,43 @@ def fetch_jobcode_subfunctions(job_code_records: List[Dict]) -> Dict[str, Option
         jc_code = rec.get("externalCode")
         if not jc_code:
             return (None, None)
-        start_key = _sf_date_to_odata_key(rec.get("startDate"))
-        url = (
-            f"{config.ODATA_BASE_URL}FOJobCode"
-            f"(externalCode='{jc_code}',startDate={start_key})"
-            f"/cust_jobsubfunction?$format=json"
-        )
-        try:
+
+        def _fetch_via_navprop() -> Optional[str]:
+            start_key = _sf_date_to_odata_key(rec.get("startDate"))
+            url = (
+                f"{config.ODATA_BASE_URL}FOJobCode"
+                f"(externalCode='{jc_code}',startDate={start_key})"
+                f"/cust_jobsubfunction?$format=json"
+            )
             data = _get_with_retry(url, f"cust_jobsubfunction/{jc_code}")
-            sub_code = data.get("d", {}).get("externalCode")
-            return (jc_code, sub_code if sub_code else None)
-        except Exception:
-            return (jc_code, None)
+            return _parse_jobcode_subfunction_response(data)
+
+        def _fetch_via_expand() -> Optional[str]:
+            filter_expr = f"externalCode eq '{jc_code}'"
+            records = fetch_all(
+                entity="FOJobCode",
+                select_fields=["externalCode", "cust_jobsubfunction"],
+                expand_fields=["cust_jobsubfunction"],
+                filter_expr=filter_expr,
+            )
+            if not records:
+                return None
+            normalized = _normalize_record(records[0])
+            return normalized.get("cust_jobsubfunction")
+
+        try:
+            sub_code = _fetch_via_navprop()
+            if sub_code is not None:
+                return (jc_code, sub_code)
+            raise RuntimeError("navprop response contained no cust_jobsubfunction")
+        except Exception as exc:
+            print(f"  [WARN] Nav-prop fetch failed for {jc_code}: {exc}. Trying fallback query...")
+            try:
+                sub_code = _fetch_via_expand()
+                return (jc_code, sub_code)
+            except Exception as fallback_exc:
+                print(f"  [WARN] Fallback fetch failed for {jc_code}: {fallback_exc}")
+                return (jc_code, None)
 
     with concurrent.futures.ThreadPoolExecutor(max_workers=10) as executor:
         futures = {executor.submit(_fetch_one, rec): rec for rec in job_code_records}
