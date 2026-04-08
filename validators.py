@@ -34,9 +34,10 @@ _ENABLED_RULES: List[Dict[str, Any]] = [r for r in _ALL_RULES if r.get("enabled"
 # 'field' uses position_field (the SF field being validated on the position).
 CHECK_META: Dict[str, Dict[str, str]] = {
     rule["id"]: {
-        "category": rule["category"],
-        "field":    rule["position_field"],
-        "severity": rule["severity"],
+        "category":    rule["category"],
+        "field":       rule["position_field"],
+        "severity":    rule["severity"],
+        "description": rule.get("description", ""),
     }
     for rule in _ALL_RULES  # include disabled rules so the summary table is complete
 }

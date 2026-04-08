@@ -43,19 +43,6 @@ CRITICAL_FILL      = PatternFill("solid", fgColor="FFD7D7")   # light red
 HIGH_FILL          = PatternFill("solid", fgColor="FFE4C4")   # light orange
 SUMMARY_LABEL_FILL = PatternFill("solid", fgColor="DCE6F1")
 
-CHECK_DESCRIPTIONS = {
-    "CHK-09": "SubDepartment → Department alignment",
-    "CHK-10": "Department → Division alignment",
-    "CHK-11": "Division → BusinessUnit alignment",
-    "CHK-12": "BusinessUnit → LegalEntity alignment",
-    "CHK-13": "Cost Centre → BusinessUnit alignment",
-    "CHK-14": "Location → BusinessUnit alignment",
-    "CHK-15": "JobCode Job Family match",
-    "CHK-16": "JobCode Job Sub Family match",
-    "CHK-17": "JobCode Global Job Level match",
-    "CHK-18": "JobCode Career Path match",
-    "CHK-19": "Canada Local Job Level",
-}
 
 
 def _ensure_output_dir() -> None:
@@ -239,7 +226,7 @@ def _build_summary_sheet(
         cnt = check_counts.get(chk_id, 0)
         row = 12 + r_offset
         ws.cell(row=row, column=1, value=chk_id)
-        ws.cell(row=row, column=2, value=CHECK_DESCRIPTIONS.get(chk_id, ""))
+        ws.cell(row=row, column=2, value=meta.get("description", ""))
         ws.cell(row=row, column=3, value=meta["severity"])
         ws.cell(row=row, column=4, value=cnt)
         row_fill = CRITICAL_FILL if meta["severity"] == "CRITICAL" else HIGH_FILL
@@ -585,7 +572,7 @@ def print_console_summary(
     for chk_id in sorted(CHECK_META.keys()):
         cnt  = check_counts.get(chk_id, 0)
         sev  = CHECK_META[chk_id]["severity"]
-        desc = CHECK_DESCRIPTIONS.get(chk_id, "")[:44].ljust(44)
+        desc = CHECK_META[chk_id].get("description", "")[:44].ljust(44)
         chk  = chk_id.ljust(8)
         sev_s = sev.ljust(8)
         cnt_s = str(cnt).center(9)

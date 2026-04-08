@@ -10,10 +10,10 @@ Interactive run-mode menu:
   [3] Only Extract        — Fetch from SF → save to DB (no validation)
 """
 
-import argparse
 import datetime
 import sys
 
+import database
 from reporters import VERSION, GITHUB_URL
 
 # ---------------------------------------------------------------------------
@@ -111,17 +111,11 @@ def _do_validate(country: str) -> None:
 # Main run logic
 # ---------------------------------------------------------------------------
 
-def run(country: str) -> None:
+def run() -> None:
     _print_banner()
 
-    if country not in ("CA", "CAN"):
-        print(
-            f"\n[INFO] Country '{country}' is not supported in this version.\n"
-            "       Only CA / CAN (Canada) is currently implemented."
-        )
-        sys.exit(0)
-
-    country = "CAN"
+    country = input("Enter country code (e.g., CAN, USA, IND, NLD): ").strip().upper()
+    database.set_country(country)
     _print_header(country)
     mode = _pick_mode()
 
@@ -154,20 +148,11 @@ def run(country: str) -> None:
         max_key = max(len(k) for k in summary)
         for entity, count in summary.items():
             print(f"  {entity:<{max_key}} : {count:>6} record(s)")
-        print("\n[DONE] Data extracted and saved to ./data/sf_integrity_CA.db\n")
+        print(f"\n[DONE] Data extracted and saved to ./data/sf_integrity_{country}.db\n")
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(
-        description="SF SuccessFactors Position Integrity Checker (Canada)"
-    )
-    parser.add_argument(
-        "--country",
-        default="CA",
-        help="Country code to check (currently only CA / CAN is supported)",
-    )
-    args = parser.parse_args()
-    run(country=args.country.upper())
+    run()
 
 
 if __name__ == "__main__":

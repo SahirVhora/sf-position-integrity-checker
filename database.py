@@ -1,7 +1,7 @@
 """
 database.py — SQLite local store for SF Position Integrity Checker.
 
-DB file:  ./data/sf_integrity_CA.db
+DB file:  ./data/sf_integrity_{COUNTRY}.db  (set at runtime via set_country())
 
 On Extract run : wipe and recreate all tables (init_db).
 On Validate run: connect read-only, fail gracefully if DB absent.
@@ -21,6 +21,12 @@ from typing import Any, Dict, List, Optional
 
 DB_DIR = "data"
 DB_PATH = os.path.join(DB_DIR, "sf_integrity_CA.db")
+
+
+def set_country(country: str) -> None:
+    """Point DB_PATH at the country-specific database file."""
+    global DB_PATH
+    DB_PATH = os.path.join(DB_DIR, f"sf_integrity_{country.upper()}.db")
 
 # Matches column names ending in "Date" or "date" (e.g. startDate, effectiveStartDate)
 _DATE_COL_RE = _re.compile(r"[Dd]ate$")

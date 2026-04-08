@@ -14,7 +14,7 @@
 
 rules:
 
-  - id: CHK-09
+  - id: CHK-01
     enabled: true
     description: "Sub Department must belong to the Position's Department"
     category: "Hierarchy Alignment"
@@ -25,7 +25,7 @@ rules:
     lookup_field: cust_Department
     compare_to_position_field: department
 
-  - id: CHK-10
+  - id: CHK-02
     enabled: true
     description: "Department must belong to the Position's Division"
     category: "Hierarchy Alignment"
@@ -36,7 +36,7 @@ rules:
     lookup_field: cust_Division
     compare_to_position_field: division
 
-  - id: CHK-11
+  - id: CHK-03
     enabled: true
     description: "Division must be linked to the Position's Business Unit"
     category: "Hierarchy Alignment"
@@ -47,7 +47,7 @@ rules:
     junction_lookup_key: div_to_bus
     compare_to_position_field: businessUnit
 
-  - id: CHK-12
+  - id: CHK-04
     enabled: true
     description: "Business Unit must be linked to the Position's Legal Entity"
     category: "Hierarchy Alignment"
@@ -58,7 +58,7 @@ rules:
     junction_lookup_key: bu_to_les
     compare_to_position_field: company
 
-  - id: CHK-13
+  - id: CHK-05
     enabled: true
     description: "Cost Centre must be linked to the Position's Business Unit"
     category: "Cost Centre Alignment"
@@ -69,7 +69,7 @@ rules:
     junction_lookup_key: cc_to_bus
     compare_to_position_field: businessUnit
 
-  - id: CHK-15
+  - id: CHK-06
     enabled: true
     description: "Job Code Job Family must match Position's Job Family"
     category: "Job Code"
@@ -80,7 +80,7 @@ rules:
     lookup_field: jobFunction
     compare_to_position_field: cust_JobFunction
 
-  - id: CHK-16
+  - id: CHK-07
     enabled: true
     description: "Job Code Sub Family must match Position's Job Sub Family"
     category: "Job Code"
@@ -91,7 +91,7 @@ rules:
     lookup_field: cust_jobsubfunction
     compare_to_position_field: cust_jobSubFunction
 
-  - id: CHK-17
+  - id: CHK-08
     enabled: true
     description: "Job Code Grade must match Position's Global Job Level"
     category: "Job Code"
@@ -103,7 +103,7 @@ rules:
     compare_to_position_field: cust_GlobalJobLevel
     fire_when_lookup_field_not_null: true
 
-  - id: CHK-18
+  - id: CHK-09
     enabled: true
     description: "Job Code Career Path must match Position's Career Path"
     category: "Job Code"

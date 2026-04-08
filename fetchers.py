@@ -424,7 +424,7 @@ def fetch_fo_location(codes: Set[str]) -> List[Dict]:
 
 
 # ---------------------------------------------------------------------------
-# Job Sub-Function via entity-key nav-prop calls
+# Job Sub-Function via entity-key nav-prop calls (parallelised)
 # ---------------------------------------------------------------------------
 
 def _sf_date_to_odata_key(raw: Any) -> str:
@@ -445,27 +445,27 @@ def fetch_jobcode_subfunctions(job_code_records: List[Dict]) -> Dict[str, Option
       FOJobCode(externalCode='X', startDate=datetime'YYYY-MM-DDTHH:MM:SS')
         /cust_jobsubfunction
 
-    Background: SF OData v2 only expands versioned entity nav-props correctly
-    when the full composite key (externalCode + startDate) is supplied.
-    $filter-based $expand returns an empty results array for these entities.
+    SF OData v2 returns cust_jobsubfunction as a deferred navigation property
+    when fetched via $select, so the composite-key nav-prop call is the only
+    reliable way to get the actual code.
 
-    One lightweight API call per unique job code.
+    Calls are issued concurrently (up to 10 threads) to reduce wall-clock time.
     """
+    import concurrent.futures
     import config
-    import requests as _req
     from api_client import _get_with_retry
 
     total = len(job_code_records)
     if total == 0:
         return {}
 
-    print(f"\n[7c/9] Fetching Job Sub Function for {total} job codes...")
+    print(f"\n[7c/9] Fetching Job Sub Function for {total} job codes (parallel)...")
     result: Dict[str, Optional[str]] = {}
 
-    for i, rec in enumerate(job_code_records, 1):
+    def _fetch_one(rec: Dict) -> tuple:
         jc_code = rec.get("externalCode")
         if not jc_code:
-            continue
+            return (None, None)
         start_key = _sf_date_to_odata_key(rec.get("startDate"))
         url = (
             f"{config.ODATA_BASE_URL}FOJobCode"
@@ -475,12 +475,21 @@ def fetch_jobcode_subfunctions(job_code_records: List[Dict]) -> Dict[str, Option
         try:
             data = _get_with_retry(url, f"cust_jobsubfunction/{jc_code}")
             sub_code = data.get("d", {}).get("externalCode")
-            result[jc_code] = sub_code if sub_code else None
+            return (jc_code, sub_code if sub_code else None)
         except Exception:
-            result[jc_code] = None
-        if i % 50 == 0 or i == total:
-            found = sum(1 for v in result.values() if v)
-            print(f"  ... {i}/{total} processed — {found} sub functions found so far")
+            return (jc_code, None)
+
+    with concurrent.futures.ThreadPoolExecutor(max_workers=10) as executor:
+        futures = {executor.submit(_fetch_one, rec): rec for rec in job_code_records}
+        done = 0
+        for future in concurrent.futures.as_completed(futures):
+            jc_code, sub_code = future.result()
+            if jc_code:
+                result[jc_code] = sub_code
+            done += 1
+            if done % 50 == 0 or done == total:
+                found = sum(1 for v in result.values() if v)
+                print(f"  ... {done}/{total} processed — {found} sub functions found so far")
 
     found = sum(1 for v in result.values() if v)
     print(f"  -> {found}/{total} job codes have a sub function code")
@@ -540,7 +549,8 @@ def run_full_extract(country_code: str) -> Dict[str, int]:
     departments  = fetch_fo_department(unique_codes["department"])
     subdepts     = fetch_cust_sub_department(unique_codes["cust_subDepartment"])
     job_codes    = fetch_fo_job_code(unique_codes["jobCode"])
-    # Enrich job codes with their sub-function code (requires per-record nav call)
+    # Enrich job codes with their sub-function code via nav-prop (deferred field
+    # cannot be resolved via $select alone in SF OData v2)
     jc_subfuncs  = fetch_jobcode_subfunctions(job_codes)
     for jc in job_codes:
         code = jc.get("externalCode")
