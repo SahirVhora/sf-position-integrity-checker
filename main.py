@@ -103,6 +103,7 @@ def _do_validate(country: str) -> None:
         total_positions=len(positions),
         country=country,
         tenant_url=config.ODATA_BASE_URL,
+        instance_id=config.SF_INSTANCE_ID,
     )
     print("\n[DONE] All reports written. Check the ./output/ directory.\n")
 

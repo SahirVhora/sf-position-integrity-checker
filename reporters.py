@@ -100,9 +100,12 @@ def _mask_tenant_url(url: str) -> str:
     return re.sub(r"(https?://)([^.]+)(\..*)", r"\1***masked***\3", url)
 
 
-def _instance_name(tenant_url: str) -> str:
-    """Extract the SF instance identifier from the base URL (e.g. 'ikeaitabD' from
-    'https://ikeaitabD.successfactors.eu/odata/v2/'). Returns empty string if not parseable."""
+def _instance_name(tenant_url: str, instance_id: str = "") -> str:
+    """Return the SF instance identifier.
+    Uses instance_id (Company ID from config) when provided; falls back to
+    parsing the hostname from tenant_url for backwards compatibility."""
+    if instance_id:
+        return instance_id
     if not tenant_url:
         return ""
     m = re.match(r"https?://([^./]+)", tenant_url.strip())
@@ -131,6 +134,7 @@ def write_excel(
     total_positions: int,
     country: str = "CA",
     tenant_url: str = "",
+    instance_id: str = "",
 ) -> str:
     _ensure_output_dir()
     path = os.path.join(OUTPUT_DIR, f"position_integrity_{country}_{_datestamp()}.xlsx")
@@ -141,7 +145,7 @@ def write_excel(
     # ---- Summary sheet (first tab) ----------------------------------------
     ws_sum = wb.active
     ws_sum.title = "Summary"
-    _build_summary_sheet(ws_sum, normalised, total_positions, country, tenant_url)
+    _build_summary_sheet(ws_sum, normalised, total_positions, country, tenant_url, instance_id)
 
     # ---- Issues sheet -------------------------------------------------------
     ws = wb.create_sheet(title="Issues")
@@ -188,6 +192,7 @@ def _build_summary_sheet(
     total_positions: int,
     country: str,
     tenant_url: str = "",
+    instance_id: str = "",
 ) -> None:
     run_date = datetime.date.today().isoformat()
     critical_count = sum(1 for i in issues if i.get("Severity") == "CRITICAL")
@@ -221,7 +226,7 @@ def _build_summary_sheet(
         vc = ws.cell(row=row, column=2, value=value)
         vc.alignment = Alignment(horizontal="left")
 
-    instance = _instance_name(tenant_url)
+    instance = _instance_name(tenant_url, instance_id)
     label_value(5,  "SF Instance:",         instance if instance else "—")
     label_value(6,  "Country:",             country)
     label_value(7,  "Run Date:",            run_date)
@@ -263,10 +268,11 @@ def write_html(
     total_positions: int,
     country: str = "CA",
     tenant_url: str = "",
+    instance_id: str = "",
 ) -> str:
     _ensure_output_dir()
     path = os.path.join(OUTPUT_DIR, f"position_integrity_{country}_{_datestamp()}.html")
-    html = _build_html(issues, total_positions, country, tenant_url)
+    html = _build_html(issues, total_positions, country, tenant_url, instance_id)
     with open(path, "w", encoding="utf-8") as f:
         f.write(html)
     print(f"  HTML -> {path}")
@@ -278,9 +284,10 @@ def _build_html(
     total_positions: int,
     country: str,
     tenant_url: str = "",
+    instance_id: str = "",
 ) -> str:
     run_dt   = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    instance = _instance_name(tenant_url)
+    instance = _instance_name(tenant_url, instance_id)
     critical_count = sum(1 for i in issues if i.get("Severity") == "CRITICAL")
     high_count     = sum(1 for i in issues if i.get("Severity") == "HIGH")
 
@@ -668,10 +675,11 @@ def write_all_reports(
     total_positions: int,
     country: str = "CA",
     tenant_url: str = "",
+    instance_id: str = "",
 ) -> None:
     print(f"\n[REPORT] Writing output files to ./{OUTPUT_DIR}/")
     write_csv(issues, country)
-    write_excel(issues, total_positions, country, tenant_url=tenant_url)
-    write_html(issues, total_positions, country, tenant_url=tenant_url)
+    write_excel(issues, total_positions, country, tenant_url=tenant_url, instance_id=instance_id)
+    write_html(issues, total_positions, country, tenant_url=tenant_url, instance_id=instance_id)
     write_run_manifest(issues, total_positions, country, tenant_url=tenant_url)
     print_console_summary(issues, total_positions, country)
