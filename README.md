@@ -4,7 +4,7 @@
 ![License: Apache 2.0](https://img.shields.io/badge/license-Apache%202.0-green)
 ![Platform: SAP SuccessFactors](https://img.shields.io/badge/platform-SAP%20SuccessFactors-0FAAFF)
 
-A Python CLI tool that validates SAP SuccessFactors **Position** object data integrity by fetching positions and foundation objects via OData v2 and running cross-entity alignment checks. Built for SAP SuccessFactors consultants and HR system administrators who need to catch hierarchy, job-code, and cost-centre misalignments before they cause payroll or reporting errors.
+A Python tool that validates SAP SuccessFactors **Position** object data integrity by fetching positions and foundation objects via OData v2 and running cross-entity alignment checks. Available as a **web UI** (recommended) or as a **CLI**. Built for SAP SuccessFactors consultants and HR system administrators who need to catch hierarchy, job-code, and cost-centre misalignments before they cause payroll or reporting errors.
 
 ---
 
@@ -113,91 +113,139 @@ On a large SF tenant with thousands of foundation objects, this means you might 
 
 ## Quickstart
 
-1. **Clone the repository**
+### Option A — Web UI (recommended)
+
+1. **Clone and set up**
    ```bash
    git clone https://github.com/sahirvhora/sf-position-integrity-checker.git
    cd sf-position-integrity-checker
-   ```
-
-2. **Install dependencies**
-   ```bash
    python -m venv .venv && source .venv/bin/activate
    pip install -r requirements.txt
    ```
 
-3. **Copy the example environment file**
+2. **Start the server**
+   ```bash
+   python web_ui.py
+   ```
+
+3. **Open** [http://127.0.0.1:5000](http://127.0.0.1:5000) in your browser
+
+4. **Configure credentials** — click the ⚙ gear icon in the top-right corner, enter your SF OData Base URL, Company ID, username and password, then click **Save Settings**. Credentials are validated against your SF instance on save and persisted across sessions.
+
+5. **Run a report** — select a country code and run mode, then click **▶ Run report**. Live progress is shown in the browser. When complete, the HTML report and Excel/CSV downloads appear in the Recent Reports section.
+
+---
+
+### Option B — CLI
+
+1. **Clone and set up**
+   ```bash
+   git clone https://github.com/sahirvhora/sf-position-integrity-checker.git
+   cd sf-position-integrity-checker
+   python -m venv .venv && source .venv/bin/activate
+   pip install -r requirements.txt
+   ```
+
+2. **Configure credentials** in a `.env` file (see [Authentication](#authentication))
    ```bash
    cp .env.example .env
+   # edit .env with your SF credentials
    ```
 
-4. **Fill in your SF credentials** in `.env`
-   ```
-   SF_ODATA_BASE_URL=https://api4.successfactors.com/odata/v2/
-   SF_USERNAME=your_api_user
-   SF_PASSWORD=your_password
-   SF_COMPANY_ID=your_company_id
-   ```
-
-5. **Run the tool**
+3. **Run**
    ```bash
    python main.py
    ```
-   The tool presents an interactive menu — choose your run mode (see **Run modes** below).
+   The tool presents an interactive menu — choose your run mode and country code.
 
 ---
 
 ## Run modes
 
-The tool offers three run modes via an interactive menu, designed around a common consulting workflow:
-
-```
-╔══════════════════════════════════════════════════════╗
-║       SF Position Integrity Checker  v1.0.0         ║
-╠══════════════════════════════════════════════════════╣
-║  [1]  Extract & Validate   (full run, hits SF API)  ║
-║  [2]  Only Validate        (re-run on cached data)  ║
-║  [3]  Only Extract         (fetch only, no checks)  ║
-║  [0]  Exit                                          ║
-╚══════════════════════════════════════════════════════╝
-```
-
 | Mode | When to use |
 |------|-------------|
-| **[1] Extract & Validate** | First run, or after foundation data has changed in SF. Fetches fresh data from your tenant and immediately runs all checks. |
-| **[2] Only Validate** | Re-run checks against already-cached data without hitting the SF API again. Useful when you have adjusted `rules.yaml` and want to re-evaluate the same dataset instantly. |
-| **[3] Only Extract** | Fetch and cache position + foundation data without running checks. Useful to pre-load data during a client call and validate offline later. |
+| **Extract & Validate** | First run, or after foundation data has changed in SF. Fetches fresh data from your tenant and immediately runs all checks. |
+| **Only Validate** | Re-run checks against already-cached data without hitting the SF API again. Useful when you have adjusted `rules.yaml` and want to re-evaluate the same dataset instantly. |
+| **Only Extract** | Fetch and cache position + foundation data without running checks. Useful to pre-load data during a client call and validate offline later. |
 
-### Country / filter parameter
+### Country filter
 
-When you select **[1] Extract & Validate** or **[3] Only Extract**, the tool prompts for a country code. This maps to the `cust_Country` field on Position records:
+The tool filters positions by `cust_Country`. Enter the ISO-3166 alpha-3 code used in your SF tenant:
 
-```
-Enter country code [default: CA]: US
-```
-
-Common values used across SF implementations:
-
-| Country | Code |
+| Country | Typical code |
 |---------|------|
-| Canada | `CA` or `CAN` |
-| United States | `US` or `USA` |
-| United Kingdom | `GB` or `GBR` |
-| Saudi Arabia | `SA` or `SAU` |
+| Canada | `CAN` |
+| United States | `USA` |
+| United Kingdom | `GBR` |
+| India | `IND` |
+| Denmark | `DNK` |
 
-> **Note:** The exact code depends on how your SF tenant has been configured. Check your `cust_Country` picklist values in SF Admin if unsure.
+> **Note:** The exact code depends on how your SF tenant's `cust_Country` picklist is configured. Check SF Admin if unsure.
 
 ---
 
-## Output examples
+## Output
 
-After each run, three report files are written to `./output/`:
+After each run, the following files are written to `./output/`:
 
 | Output | Description |
 |--------|-------------|
-| **HTML report** | Interactive browser report with filter dropdowns (Severity, Check ID, Category), full-text search, column sort, and one-click export to CSV, Excel, or PDF via print. |
-| **Excel workbook** | Two sheets: *Issues* (all failures with colour-coded rows) and *Summary* (run statistics + per-check breakdown with branding header). |
-| **Console table** | Unicode box-drawing table printed to stdout showing per-check counts, severity, and run totals. |
-| **run_manifest.json** | Machine-readable JSON summary of the run — suitable for CI pipelines or audit trails. |
+| **HTML report** | Interactive browser report with filter dropdowns (Severity, Check ID, Category), full-text search, column sort, and one-click export. |
+| **Excel workbook** | Two sheets: *Issues* (colour-coded rows by severity) and *Summary* (run statistics, SF instance, per-check breakdown). |
+| **CSV** | Flat export of all issues — suitable for further analysis or loading into another tool. |
+| **run_manifest.json** | Machine-readable JSON summary of the run — checks executed, issue counts, timestamp. Suitable for CI pipelines or audit trails. |
+
+Each report permanently records the SF instance (Company ID) it was run against, so historical reports in the web UI always show the correct instance even after switching tenants.
+
+---
+
+## Authentication
+
+The tool supports two authentication methods. Configure via the web UI settings modal or via `.env`.
+
+### Basic Auth (default)
+
+Quickest to set up. Suitable for development and internal tooling.
+
+**Via web UI:** click the ⚙ gear icon → enter Base URL, Company ID, username, and password → Save Settings.
+
+**Via `.env`:**
+```env
+SF_AUTH_METHOD=basic
+SF_ODATA_BASE_URL=https://<tenant>.sapsf.eu/odata/v2/
+SF_COMPANY_ID=your_company_id
+SF_USERNAME=your_api_user
+SF_PASSWORD=your_password
+```
+
+### OAuth2 SAML Bearer Token (recommended for enterprise)
+
+More secure — no stored passwords, tokens auto-refresh. Required by some enterprise security policies.
+
+```env
+SF_AUTH_METHOD=oauth2
+SF_ODATA_BASE_URL=https://<tenant>.sapsf.eu/odata/v2/
+SF_CLIENT_ID=your_client_id
+SF_COMPANY_ID=your_company_id
+SF_USER_ID=your_api_user_id
+SF_TOKEN_URL=https://<tenant>.sapsf.eu/oauth/token
+SF_PRIVATE_KEY_PATH=/path/to/sf_private_key.pem
+```
+
+See [OAuth2 Setup Guide](docs/oauth2_setup.md) for step-by-step instructions.
+
+---
+
+## Credential storage
+
+Credentials entered in the web UI are saved and reloaded automatically on server restart. The storage priority is:
+
+1. **`.env` file** — takes precedence if populated; suitable for local dev
+2. **OS keyring** — used when available (macOS Keychain, Windows Credential Manager, Linux Secret Service)
+3. **`config/credentials.json`** — file-based fallback for environments without a keyring daemon (e.g. WSL2). Excluded from git via `.gitignore`.
+4. **Interactive prompt** — CLI fallback only; offers to save for future runs
+
+The web UI validates credentials against the SF instance on every save and returns a clear error if authentication fails.
 
 ---
 
@@ -219,7 +267,7 @@ rules:
     fire_when_lookup_field_not_null: true
 ```
 
-Changes take effect immediately on the next run — no restart or reinstall needed.
+Changes take effect immediately on the next run — no restart needed.
 
 ---
 
@@ -232,58 +280,8 @@ Changes take effect immediately on the next run — no restart or reinstall need
 ## Security
 
 - **Credentials never leave your machine.** The tool connects only to your SF tenant and stores data in a local SQLite file under `./data/`.
-- **Three credential options** (see below) — choose the one that fits your security policy.
 - **Tenant URL is masked** in all log output and `run_manifest.json` (`***masked***` replaces the subdomain).
-- **`.env` and `*.db` files are in `.gitignore`** — they will not be committed accidentally.
-
----
-
-## Authentication
-
-The tool supports two authentication methods. Set `SF_AUTH_METHOD` in your `.env` to choose.
-
-### Basic Auth (default)
-Quickest to set up. Suitable for development and internal tooling.
-```env
-SF_AUTH_METHOD=basic
-SF_USERNAME=your_api_user
-SF_PASSWORD=your_password
-SF_ODATA_BASE_URL=https://<tenant>.successfactors.com/odata/v2/
-```
-
-### OAuth2 SAML Bearer Token (recommended for enterprise)
-More secure. No passwords stored. Tokens auto-refresh. Required by some enterprise security policies.
-```env
-SF_AUTH_METHOD=oauth2
-SF_CLIENT_ID=your_client_id
-SF_COMPANY_ID=your_company_id
-SF_USER_ID=your_api_user_id
-SF_TOKEN_URL=https://<tenant>.successfactors.com/oauth/token
-SF_PRIVATE_KEY_PATH=/home/yourname/.sf_keys/sf_private_key.pem
-SF_ODATA_BASE_URL=https://<tenant>.successfactors.com/odata/v2/
-```
-
-See [OAuth2 Setup Guide](docs/oauth2_setup.md) for step-by-step instructions.
-
----
-
-## Credential setup (Basic Auth options)
-
-**Option 1 — `.env` file** (quickest, fine for local dev)
-```bash
-cp .env.example .env
-# edit .env with your credentials
-```
-
-**Option 2 — OS keyring** (recommended for shared or CI environments)
-```python
-from config import store_credentials_to_keyring
-store_credentials_to_keyring()
-# Follow the interactive prompts — credentials are stored in your OS secret store
-```
-
-**Option 3 — Interactive prompt** (fallback)
-If neither `.env` nor keyring credentials are found, the tool prompts you at runtime and offers to save to the keyring for future runs.
+- **`.env`, `*.db`, and `config/credentials.json`** are in `.gitignore` and will not be committed accidentally.
 
 ---
 
@@ -304,8 +302,6 @@ Tests cover: SQLite schema structure, CHECK constraints, date normalisation, jun
 - **Mode 2: Pre-Change Impact Analysis** — simulate a proposed foundation change (e.g. deactivate a Cost Centre, move a Sub Department) and surface every affected Position and Job Info record before the change is applied
 - **Additional check types** — `not_null` rule type and custom expression checks via `rules.yaml`
 - **Multi-country parallel runs** — fan out across all active countries in a single execution
-- **OAuth2 SAML Bearer Token** — enterprise-grade authentication without stored passwords (see [OAuth2 Setup Guide](docs/oauth2_setup.md))
-- **Web UI** — lightweight Streamlit dashboard for non-technical stakeholders
 
 ---
 
