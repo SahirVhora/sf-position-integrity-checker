@@ -1,0 +1,586 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SF Position Integrity Checker — Web UI</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; }
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: #f4f6f9; color: #1f1f1f; margin: 0; }
+    .page { max-width: 980px; margin: 0 auto; padding: 1.5rem 1rem 3rem; }
+    header { margin-bottom: 1rem; display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
+    h1 { margin: 0 0 0.25rem; font-size: 1.8rem; color: #1f3864; }
+    p.lead { margin: 0; color: #4a4a4a; }
+    .card { background: #fff; border-radius: 12px; box-shadow: 0 8px 30px rgba(0,0,0,.05); padding: 1.25rem 1.5rem; margin-bottom: 1rem; }
+    form { display: grid; gap: 1rem; }
+    .field-group { display: grid; gap: 0.45rem; min-width: 0; }
+    label { color: #444; font-weight: 600; }
+    input, select, button { width: 100%; font: inherit; border-radius: 8px; border: 1px solid #d2d6dc; }
+    input, select { padding: 0.85rem 0.9rem; background: #fff; min-height: 44px; }
+    button { padding: 0.95rem 1rem; background: #1f3864; color: #fff; border: none; cursor: pointer; transition: background .18s ease; }
+    button:hover { background: #2d4f8b; }
+    .row { display: grid; gap: 1rem; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); }
+    .message { padding: 1rem 1.25rem; border-radius: 10px; font-size: 0.95rem; }
+    .message.success { background: #e6f5e9; color: #1c5f35; border: 1px solid #9cd8b5; }
+    .message.error { background: #ffe6e6; color: #8a1f25; border: 1px solid #f1a6a6; }
+    .report-list { display: grid; gap: 1rem; }
+    .report-card { border: 1px solid #d8dce2; border-radius: 10px; padding: 1rem; background: #fff; }
+    .report-card header { display: flex; justify-content: space-between; align-items: center; gap: 0.5rem; margin-bottom: 0.75rem; }
+    .report-card h2 { font-size: 1rem; margin: 0; }
+    .report-card small { color: #7a7a7a; }
+    .report-links { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+    .report-links a { text-decoration: none; color: #1f3864; padding: 0.45rem 0.75rem; border: 1px solid #c8d0dd; border-radius: 8px; background: #f8fbff; }
+    .latest-report { display: flex; flex-wrap: wrap; gap: 0.75rem; align-items: center; margin-bottom: 1rem; }
+    .latest-report a { display: inline-flex; align-items: center; justify-content: center; padding: 0.75rem 1rem; background: #1f3864; color: #fff; border-radius: 10px; text-decoration: none; border: 1px solid transparent; }
+    .latest-report a:hover { background: #2d4f8b; }
+    .settings-btn {
+      background: #1f3864;
+      color: #fff;
+      width: 2.6rem;
+      height: 2.6rem;
+      border-radius: 50%;
+      border: none;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.25rem;
+      margin-left: 0.5rem;
+      transition: background 0.18s ease;
+    }
+    .settings-btn:hover { background: #2d4f8b; }
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.42);
+      z-index: 1000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 1rem;
+    }
+    .modal-overlay.hidden { display: none; }
+    .modal {
+      width: 100%;
+      max-width: 700px;
+      background: #fff;
+      border-radius: 16px;
+      box-shadow: 0 24px 80px rgba(31, 56, 100, 0.16);
+      overflow: hidden;
+    }
+    .modal-header,
+    .modal-footer { padding: 1.25rem 1.5rem; border-top: 1px solid #e6ebf2; }
+    .modal-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #e6ebf2; }
+    .modal-body { padding: 1.5rem; max-height: calc(100vh - 120px); overflow-y: auto; }
+    .modal-body form { display: grid; gap: 1rem; }
+    .modal-body .row { grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); }
+    .modal-body .field-group { min-width: 0; }
+    .modal-body input, .modal-body select { width: 100%; max-width: 100%; box-sizing: border-box; }
+    .modal-body small { color: #5f6b7c; }
+    .modal-close {
+      background: none;
+      border: none;
+      font-size: 1.35rem;
+      cursor: pointer;
+      color: #4a4a4a;
+    }
+    .settings-saved-indicator {
+      color: #1f3864;
+      font-size: 0.95rem;
+      font-weight: 600;
+    }
+    .settings-saved-indicator.hidden { display: none; }
+    .summary-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 0.75rem; margin-top: 1rem; }
+    .summary-item { background: #f8fbff; border: 1px solid #d8dce2; border-radius: 10px; padding: 0.9rem 1rem; }
+    .summary-item strong { display: block; margin-bottom: 0.35rem; color: #1f3864; }
+    .summary-table { width: 100%; border-collapse: collapse; margin-top: 1rem; }
+    .summary-table th, .summary-table td { padding: 0.85rem 0.95rem; border: 1px solid #d8dce2; text-align: left; }
+    .summary-table th { background: #f8fbff; color: #1f3864; }
+    .related-list { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 0.75rem; }
+    .related-list span { font-size: 0.82rem; color: #666; }
+    .progress-bar { background: #e8eef6; border-radius: 999px; overflow: hidden; height: 0.95rem; margin: 1rem 0; }
+    .progress-fill { width: 0%; height: 100%; background: #1f3864; transition: width 0.2s ease; }
+    .progress-summary { display: grid; gap: 0.25rem; grid-template-columns: 1fr auto; color: #374151; font-size: 0.95rem; }
+    .progress-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 0.75rem; margin-top: 1rem; }
+    .progress-item { background: #fff; border: 1px solid #d8dce2; border-radius: 10px; padding: 0.85rem; }
+    .progress-item strong { display: block; margin-bottom: 0.35rem; color: #1f3864; }
+    .progress-log { margin-top: 1rem; }
+    .progress-log ul { list-style: none; padding: 0; margin: 0; max-height: 180px; overflow: auto; }
+    .progress-log li { margin: 0.35rem 0; font-size: 0.95rem; color: #333; }
+    .hidden { display: none; }
+    footer { margin-top: 2rem; color: #68707d; font-size: 0.9rem; text-align: center; }
+  </style>
+</head>
+<body>
+<div class="page">
+  <header>
+    <div class="header-title">
+      <h1>SF Position Integrity Checker</h1>
+      <p class="lead">Select a country and run the integrity check. The tool will generate the same HTML report you get from the CLI, and files are available to download.</p>
+    </div>
+    <button type="button" id="open-auth-settings" class="settings-btn" title="Open auth settings">⚙</button>
+  </header>
+
+  <div class="card">
+    <form id="run-form" method="post">
+      <div class="row">
+        <div class="field-group">
+          <label for="country">Country code</label>
+          <select id="country" name="country" required>
+            {% for code, label in countries %}
+              <option value="{{ code }}" {% if form.country == code %}selected{% endif %}>{{ code }} — {{ label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="field-group">
+          <label for="mode">Run mode</label>
+          <select id="mode" name="mode">
+            {% for value, label in modes %}
+              <option value="{{ value }}" {% if form.mode == value %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+      </div>
+
+      <button type="submit">Run report</button>
+    </form>
+  </div>
+
+  <div class="modal-overlay hidden" id="auth-settings-overlay">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="auth-settings-title">
+      <div class="modal-header">
+        <div>
+          <h2 id="auth-settings-title">Authentication settings</h2>
+          <div id="settings-saved-indicator" class="settings-saved-indicator hidden">Saved</div>
+        </div>
+        <button type="button" class="modal-close" id="close-auth-settings" aria-label="Close settings">×</button>
+      </div>
+      <div class="modal-body">
+        <form id="auth-config-form">
+          <div class="row">
+            <div class="field-group">
+              <label for="auth-method">Auth method</label>
+              <select id="auth-method" name="auth_method">
+                <option value="basic" {% if auth_config.auth_method == 'basic' %}selected{% endif %}>Basic Auth</option>
+                <option value="oauth2" {% if auth_config.auth_method == 'oauth2' %}selected{% endif %}>OAuth2</option>
+              </select>
+            </div>
+            <div class="field-group">
+              <label for="base-url">OData base URL</label>
+              <input id="base-url" name="base_url" type="url" value="{{ auth_config.base_url }}" placeholder="https://api55.sapsf.eu/odata/v2/" required />
+            </div>
+          </div>
+
+          <div class="field-group">
+            <label for="company-id">Company ID</label>
+            <input id="company-id" name="company_id" type="text" value="{{ auth_config.company_id }}" placeholder="Leave blank if embedded in username" />
+          </div>
+
+          <div id="basic-auth-fields">
+            <div class="row">
+              <div class="field-group">
+                <label for="username">Username</label>
+                <input id="username" name="username" type="text" value="{{ auth_config.username }}" />
+              </div>
+              <div class="field-group">
+                <label for="password">Password</label>
+                <input
+                  id="password"
+                  name="password"
+                  type="password"
+                  autocomplete="new-password"
+                  placeholder="{{ '********' if auth_config.password_saved else '' }}"
+                  value=""
+                />
+              </div>
+            </div>
+            <div class="field-group">
+              <small>
+                {% if auth_config.password_saved %}
+                  Saved password is available and will be used unless you enter a new one.
+                {% else %}
+                  Enter your password to save it for future runs.
+                {% endif %}
+              </small>
+            </div>
+          </div>
+
+          <div id="oauth2-fields" class="hidden">
+            <div class="row">
+              <div class="field-group">
+                <label for="client-id">Client ID</label>
+                <input id="client-id" name="client_id" type="text" value="{{ auth_config.client_id or '' }}" />
+              </div>
+              <div class="field-group">
+                <label for="user-id">User ID</label>
+                <input id="user-id" name="user_id" type="text" value="{{ auth_config.user_id or '' }}" />
+              </div>
+            </div>
+            <div class="row">
+              <div class="field-group">
+                <label for="token-url">Token endpoint URL</label>
+                <input id="token-url" name="token_url" type="url" value="{{ auth_config.token_url or '' }}" />
+              </div>
+              <div class="field-group">
+                <label for="private-key-path">Private key path</label>
+                <input id="private-key-path" name="private_key_path" type="text" value="{{ auth_config.private_key_path or '' }}" />
+              </div>
+            </div>
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button type="button" id="save-auth-settings">Save auth settings</button>
+      </div>
+    </div>
+  </div>
+
+  {% if latest_report %}
+    <div class="card latest-report">
+      <div>
+        <strong>Latest generated report:</strong>
+        <div><small>{{ latest_report.name }} · Country: {{ latest_report.country }} · Run date: {{ latest_report.run_date }}</small></div>
+      </div>
+      <a href="{{ latest_report.url }}" target="_blank">Open latest report</a>
+    </div>
+  {% endif %}
+
+  {% if status %}
+    <div class="message success">{{ status }}</div>
+  {% endif %}
+  {% if error %}
+    <div class="message error">{{ error }}</div>
+  {% endif %}
+  <div id="client-message" class="message hidden"></div>
+
+  <div id="live-progress" class="card hidden">
+    <h2>Live progress</h2>
+    <div class="progress-bar">
+      <div id="progress-fill" class="progress-fill"></div>
+    </div>
+    <div class="progress-summary">
+      <div><strong id="progress-step">Waiting for the run to start...</strong></div>
+      <div id="progress-message">Submit the form to start the extract.</div>
+    </div>
+    <div class="progress-grid">
+      <div class="progress-item"><strong>Phase</strong><span id="progress-phase">—</span></div>
+      <div class="progress-item"><strong>Step</strong><span id="progress-step-detail">—</span></div>
+      <div class="progress-item"><strong>Current</strong><span id="progress-current">0</span></div>
+      <div class="progress-item"><strong>Total</strong><span id="progress-total">—</span></div>
+    </div>
+    <div class="progress-log">
+      <strong>Recent events</strong>
+      <ul id="progress-log"></ul>
+    </div>
+  </div>
+
+  <div id="summary-card" class="card {% if not fetch_details %}hidden{% endif %}">
+    <h2>Extraction summary</h2>
+    <table class="summary-table">
+      <thead>
+        <tr>
+          <th>Object</th>
+          <th>Extracted</th>
+        </tr>
+      </thead>
+      <tbody id="summary-rows">
+        {% if fetch_details %}
+          {% for item in fetch_details %}
+            <tr>
+              <td>{{ item.label }}</td>
+              <td>{{ item.value }}</td>
+            </tr>
+          {% endfor %}
+        {% endif %}
+      </tbody>
+    </table>
+  </div>
+
+  {% if fetch_details %}
+    <div class="card">
+      <h2>Current fetch details</h2>
+      <div class="summary-grid">
+        {% for item in fetch_details %}
+          <div class="summary-item">
+            <strong>{{ item.label }}</strong>
+            <span>{{ item.value }}</span>
+          </div>
+        {% endfor %}
+      </div>
+    </div>
+  {% endif %}
+
+  <div class="card">
+    <h2>Recent reports</h2>
+    {% if reports %}
+      <div class="report-list">
+        {% for report in reports %}
+          <div class="report-card">
+            <header>
+              <div>
+                <strong>{{ report.name }}</strong>
+                <div><small>Country: {{ report.country }} · Run date: {{ report.run_date }}</small></div>
+              </div>
+            </header>
+            <div class="report-links">
+              <a href="{{ report.url }}" target="_blank">View HTML</a>
+              {% for file in report.related %}
+                {% if file.name.endswith('.csv') %}
+                  <a href="{{ file.url }}">Download CSV</a>
+                {% elif file.name.endswith('.xlsx') %}
+                  <a href="{{ file.url }}">Download Excel</a>
+                {% elif file.name.endswith('.json') %}
+                  <a href="{{ file.url }}">Download manifest</a>
+                {% endif %}
+              {% endfor %}
+            </div>
+          </div>
+        {% endfor %}
+      </div>
+    {% else %}
+      <p>No reports have been generated yet. Run the report above to create one.</p>
+    {% endif %}
+  </div>
+
+  <footer>Run the report and then click "View HTML" to open the generated report page in a new tab.</footer>
+</div>
+<script>
+  const runForm = document.getElementById('run-form');
+  const clientMessage = document.getElementById('client-message');
+  const liveProgress = document.getElementById('live-progress');
+  const progressFill = document.getElementById('progress-fill');
+  const progressPhase = document.getElementById('progress-phase');
+  const progressStepLabel = document.getElementById('progress-step');
+  const progressStepDetail = document.getElementById('progress-step-detail');
+  const progressMessage = document.getElementById('progress-message');
+  const progressCurrent = document.getElementById('progress-current');
+  const progressTotal = document.getElementById('progress-total');
+  const progressLog = document.getElementById('progress-log');
+  const summaryCard = document.getElementById('summary-card');
+  const summaryRows = document.getElementById('summary-rows');
+  const authSettingsOverlay = document.getElementById('auth-settings-overlay');
+  const openAuthSettingsButton = document.getElementById('open-auth-settings');
+  const closeAuthSettingsButton = document.getElementById('close-auth-settings');
+  const saveAuthSettingsButton = document.getElementById('save-auth-settings');
+  const settingsSavedIndicator = document.getElementById('settings-saved-indicator');
+  const authConfigForm = document.getElementById('auth-config-form');
+  const authMethodInput = document.getElementById('auth-method');
+  const basicAuthFields = document.getElementById('basic-auth-fields');
+  const oauth2Fields = document.getElementById('oauth2-fields');
+
+  const SUMMARY_LABELS = {
+    positions: 'Positions fetched',
+    companies: 'Companies',
+    business_units: 'Business Units',
+    divisions: 'Divisions',
+    departments: 'Departments',
+    sub_departments: 'Sub Departments',
+    job_codes: 'Job Codes',
+    job_class_can: 'Job Class Local Records',
+    cost_centers: 'Cost Centres',
+    locations: 'Locations',
+  };
+
+  function setClientMessage(message, type = 'success') {
+    clientMessage.textContent = message;
+    clientMessage.className = `message ${type}`;
+    clientMessage.classList.remove('hidden');
+  }
+
+  function saveAuthSettings() {
+    const formData = new FormData(authConfigForm);
+    const payload = Object.fromEntries(formData.entries());
+    const password = payload.password?.trim();
+
+    if (payload.auth_method === 'basic' && !password && !{{ 'true' if auth_config.password_saved else 'false' }}) {
+      setClientMessage('Please enter your password to save Basic Auth settings.', 'error');
+      return;
+    }
+
+    fetchJson('/auth-config', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    }).then(() => {
+      settingsSavedIndicator.classList.remove('hidden');
+      setTimeout(() => settingsSavedIndicator.classList.add('hidden'), 1200);
+      setClientMessage('Authentication settings saved successfully.', 'success');
+      closeAuthSettings();
+    }).catch((err) => {
+      setClientMessage(err.message || 'Unable to save auth settings.', 'error');
+    });
+  }
+
+  function clearClientMessage() {
+    clientMessage.className = 'message hidden';
+    clientMessage.textContent = '';
+  }
+
+  function setProgressVisible(visible) {
+    liveProgress.classList.toggle('hidden', !visible);
+  }
+
+  function setProgressState(data) {
+    progressPhase.textContent = data.phase || '—';
+    progressStepLabel.textContent = data.step ? `Step ${data.step}` : 'Waiting for start...';
+    progressStepDetail.textContent = data.message || 'Waiting for the run to start...';
+    progressCurrent.textContent = data.current ?? 0;
+    progressTotal.textContent = data.total ?? '—';
+
+    if (typeof data.current === 'number' && typeof data.total === 'number' && data.total > 0) {
+      const percent = Math.min(100, Math.round((data.current / data.total) * 100));
+      progressFill.style.width = `${percent}%`;
+    } else {
+      progressFill.style.width = '100%';
+    }
+
+    progressLog.innerHTML = '';
+    const events = data.events || [];
+    events.slice(-10).forEach((event) => {
+      const li = document.createElement('li');
+      const label = event.step ? `[${event.step}] ` : '';
+      const text = event.message || JSON.stringify(event);
+      li.textContent = `${label}${text}`;
+      progressLog.appendChild(li);
+    });
+  }
+
+  function openAuthSettings() {
+    authSettingsOverlay.classList.remove('hidden');
+    document.body.style.overflow = 'hidden';
+  }
+
+  function closeAuthSettings() {
+    authSettingsOverlay.classList.add('hidden');
+    document.body.style.overflow = '';
+  }
+
+  function setSummaryTable(summary, country) {
+    if (!summary || Object.keys(summary).length === 0) {
+      summaryCard.classList.add('hidden');
+      summaryRows.innerHTML = '';
+      return;
+    }
+
+    const activeCountry = (country || document.getElementById('country').value || 'CAN').toUpperCase();
+    summaryRows.innerHTML = '';
+    Object.entries(summary).forEach(([key, value]) => {
+      const tr = document.createElement('tr');
+      const label = key === 'job_class_can'
+        ? `Job Class ${activeCountry} Records`
+        : SUMMARY_LABELS[key] || key;
+      tr.innerHTML = `
+        <td>${label}</td>
+        <td>${value}</td>
+      `;
+      summaryRows.appendChild(tr);
+    });
+    summaryCard.classList.remove('hidden');
+  }
+
+  function updateAuthFieldVisibility() {
+    const method = authMethodInput.value;
+    const isBasic = method === 'basic';
+    basicAuthFields.classList.toggle('hidden', !isBasic);
+    oauth2Fields.classList.toggle('hidden', isBasic);
+  }
+
+  openAuthSettingsButton.addEventListener('click', openAuthSettings);
+  closeAuthSettingsButton.addEventListener('click', closeAuthSettings);
+  authSettingsOverlay.addEventListener('click', (event) => {
+    if (event.target === authSettingsOverlay) {
+      closeAuthSettings();
+    }
+  });
+  document.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape') {
+      closeAuthSettings();
+    }
+  });
+
+  authMethodInput.addEventListener('change', updateAuthFieldVisibility);
+  saveAuthSettingsButton.addEventListener('click', saveAuthSettings);
+  authConfigForm.addEventListener('submit', (event) => {
+    event.preventDefault();
+    saveAuthSettings();
+  });
+
+  updateAuthFieldVisibility();
+
+  async function fetchJson(url, options) {
+    const response = await fetch(url, options);
+    const payload = await response.json();
+    if (!response.ok) {
+      throw new Error(payload.error || payload.message || 'Request failed');
+    }
+    return payload;
+  }
+
+  async function pollStatus(runId) {
+    try {
+      const status = await fetchJson(`/run-status?run_id=${encodeURIComponent(runId)}`);
+      setProgressState(status);
+
+      if (status.status === 'running') {
+        setTimeout(() => pollStatus(runId), 1000);
+        return;
+      }
+
+      if (status.status === 'done') {
+        setSummaryTable(status.summary, status.country);
+        setClientMessage(status.message || 'Run complete.', 'success');
+        setTimeout(() => refreshReports(), 1500);
+      } else if (status.status === 'error') {
+        setClientMessage(status.message || 'Run failed.', 'error');
+      }
+
+      runForm.querySelector('button[type=submit]').disabled = false;
+    } catch (err) {
+      setClientMessage(err.message || 'Unable to check run status.', 'error');
+      runForm.querySelector('button[type=submit]').disabled = false;
+    }
+  }
+
+  async function refreshReports() {
+    try {
+      const data = await fetchJson('/reports');
+      window.location.reload();
+    } catch (err) {
+      console.warn('Unable to refresh reports:', err);
+    }
+  }
+
+  function clearSummary() {
+    summaryRows.innerHTML = '';
+    summaryCard.classList.add('hidden');
+  }
+
+  runForm.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    clearClientMessage();
+    setProgressVisible(true);
+    clearSummary();
+
+    const country = document.getElementById('country').value;
+    const mode = document.getElementById('mode').value;
+    const submitButton = runForm.querySelector('button[type=submit]');
+    submitButton.disabled = true;
+    setClientMessage('Run started. Monitoring progress...', 'success');
+
+    try {
+      const payload = { country, mode };
+      const response = await fetchJson('/run-report', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      pollStatus(response.run_id);
+    } catch (err) {
+      setClientMessage(err.message || 'Unable to start run.', 'error');
+      submitButton.disabled = false;
+    }
+  });
+</script>
+</body>
+</html>

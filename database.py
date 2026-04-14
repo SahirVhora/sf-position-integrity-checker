@@ -244,6 +244,14 @@ CREATE INDEX idx_vr_run_severity ON validation_results(run_timestamp, severity);
 CREATE INDEX idx_vr_check_id     ON validation_results(check_id);
 CREATE INDEX idx_vr_position     ON validation_results(position_code);
 
+-- Current employee assignment per position (sourced from EmpJob)
+CREATE TABLE emp_job (
+    position_code  TEXT PRIMARY KEY,
+    userId         TEXT,
+    emplStatus     TEXT,
+    startDate      TEXT
+);
+
 -- ---------------------------------------------------------------------------
 -- Audit views — SQL equivalents of CHK-09, CHK-11, CHK-12 for inspection
 -- ---------------------------------------------------------------------------
@@ -334,6 +342,9 @@ _TABLE_COLS: Dict[str, List[str]] = {
     ],
     "fo_location": [
         "externalCode", "startDate", "endDate", "status", "description",
+    ],
+    "emp_job": [
+        "position_code", "userId", "emplStatus", "startDate",
     ],
 }
 

@@ -81,6 +81,8 @@ def _issue(pos: Dict[str, Any], check_id: str, description: str) -> Dict[str, An
         "Job Code":             _val(pos, "jobCode") or "",
         "Cost Centre":          _val(pos, "costCenter") or "",
         "Location":             _val(pos, "location") or "",
+        "Employee ID":          _val(pos, "__empjob_userId") or "",
+        "Employee Status":      _val(pos, "__empjob_emplStatus") or "",
         "Check ID":             check_id,
         "Check Category":       meta["category"],
         "Failed Field":         meta["field"],
@@ -179,6 +181,15 @@ def validate_positions(
     """
     issues: List[Dict[str, Any]] = []
 
+    # Pre-enrich each position with the current employee assignment so that
+    # _issue() can include Employee ID and Employee Status in every issue row.
+    empjob_lookup = lookups.get("empjob", {})
+    for pos in positions:
+        pos_code = _val(pos, "code") or ""
+        empjob_rec = empjob_lookup.get(pos_code, {})
+        pos["__empjob_userId"]     = empjob_rec.get("userId", "") if empjob_rec else ""
+        pos["__empjob_emplStatus"] = empjob_rec.get("emplStatus", "") if empjob_rec else ""
+
     for pos in positions:
         for rule in _ENABLED_RULES:
             rule_type = rule.get("type")
@@ -232,6 +243,8 @@ def build_lookups_from_db() -> Dict[str, Any]:
         "job_class_can":   to_lookup("fo_job_class_local_can"),
         "cost_centers":    to_lookup("fo_cost_center"),
         "locations":       to_lookup("fo_location"),
+        # EmpJob: current employee assignment keyed by position_code
+        "empjob":          {r["position_code"]: r for r in load_table("emp_job")},
         # Set-valued junction lookups
         "div_to_bus": to_set_lookup("fo_division_business_unit", "division_code", "bu_code"),
         "bu_to_les":  to_set_lookup("fo_bu_legal_entity",        "bu_code",        "legal_entity_code"),

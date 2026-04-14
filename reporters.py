@@ -30,6 +30,8 @@ COLUMNS = [
     "Job Code",
     "Cost Centre",
     "Location",
+    "Employee ID",
+    "Employee Status",
     "Check ID",
     "Check Category",
     "Failed Field",
