@@ -3,6 +3,7 @@ config/credentials.json
 *.db
 data/
 output/
+*.meta.json
 __pycache__/
 .venv/
 *.pyc

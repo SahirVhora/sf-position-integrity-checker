@@ -670,6 +670,17 @@ def write_run_manifest(
 # Master write function
 # ---------------------------------------------------------------------------
 
+def write_report_meta(country: str, instance_id: str) -> None:
+    """Write a per-report sidecar <stem>.meta.json so the web UI can show
+    the correct instance name for historical reports regardless of what
+    instance is currently configured."""
+    _ensure_output_dir()
+    stem = f"position_integrity_{country}_{_datestamp()}"
+    path = os.path.join(OUTPUT_DIR, f"{stem}.meta.json")
+    with open(path, "w", encoding="utf-8") as f:
+        json.dump({"instance_id": instance_id}, f)
+
+
 def write_all_reports(
     issues: List[Dict[str, Any]],
     total_positions: int,
@@ -682,4 +693,5 @@ def write_all_reports(
     write_excel(issues, total_positions, country, tenant_url=tenant_url, instance_id=instance_id)
     write_html(issues, total_positions, country, tenant_url=tenant_url, instance_id=instance_id)
     write_run_manifest(issues, total_positions, country, tenant_url=tenant_url)
+    write_report_meta(country, instance_id)
     print_console_summary(issues, total_positions, country)

@@ -426,6 +426,18 @@ def _instance_from_config() -> str:
     return getattr(__import__("config"), "SF_INSTANCE_ID", "") or ""
 
 
+def _read_report_meta_instance(html_filename: str) -> str:
+    """Read the instance_id from the per-report sidecar .meta.json file."""
+    stem = os.path.splitext(html_filename)[0]
+    meta_path = os.path.join(OUTPUT_DIR, f"{stem}.meta.json")
+    try:
+        import json as _json
+        with open(meta_path, encoding="utf-8") as f:
+            return _json.load(f).get("instance_id", "")
+    except Exception:
+        return ""
+
+
 def _report_files() -> list[dict]:
     _ensure_output_dir()
     files = glob.glob(os.path.join(OUTPUT_DIR, "position_integrity_*.html"))
@@ -436,7 +448,7 @@ def _report_files() -> list[dict]:
         if not match:
             continue
         country, run_date = match.groups()
-        instance = _instance_from_config() or _read_manifest_instance(filename)
+        instance = _read_report_meta_instance(filename) or _instance_from_config()
         result.append({
             "name": filename,
             "country": country,
