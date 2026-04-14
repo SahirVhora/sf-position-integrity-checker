@@ -100,6 +100,15 @@ def _mask_tenant_url(url: str) -> str:
     return re.sub(r"(https?://)([^.]+)(\..*)", r"\1***masked***\3", url)
 
 
+def _instance_name(tenant_url: str) -> str:
+    """Extract the SF instance identifier from the base URL (e.g. 'ikeaitabD' from
+    'https://ikeaitabD.successfactors.eu/odata/v2/'). Returns empty string if not parseable."""
+    if not tenant_url:
+        return ""
+    m = re.match(r"https?://([^./]+)", tenant_url.strip())
+    return m.group(1) if m else ""
+
+
 # ---------------------------------------------------------------------------
 # CSV
 # ---------------------------------------------------------------------------
@@ -121,6 +130,7 @@ def write_excel(
     issues: List[Dict[str, Any]],
     total_positions: int,
     country: str = "CA",
+    tenant_url: str = "",
 ) -> str:
     _ensure_output_dir()
     path = os.path.join(OUTPUT_DIR, f"position_integrity_{country}_{_datestamp()}.xlsx")
@@ -131,7 +141,7 @@ def write_excel(
     # ---- Summary sheet (first tab) ----------------------------------------
     ws_sum = wb.active
     ws_sum.title = "Summary"
-    _build_summary_sheet(ws_sum, normalised, total_positions, country)
+    _build_summary_sheet(ws_sum, normalised, total_positions, country, tenant_url)
 
     # ---- Issues sheet -------------------------------------------------------
     ws = wb.create_sheet(title="Issues")
@@ -177,6 +187,7 @@ def _build_summary_sheet(
     issues: List[Dict[str, Any]],
     total_positions: int,
     country: str,
+    tenant_url: str = "",
 ) -> None:
     run_date = datetime.date.today().isoformat()
     critical_count = sum(1 for i in issues if i.get("Severity") == "CRITICAL")
@@ -210,23 +221,25 @@ def _build_summary_sheet(
         vc = ws.cell(row=row, column=2, value=value)
         vc.alignment = Alignment(horizontal="left")
 
-    label_value(5,  "Country:",             country)
-    label_value(6,  "Run Date:",            run_date)
-    label_value(7,  "Positions Checked:",   total_positions)
-    label_value(8,  "Total Issues Found:",  len(issues))
-    label_value(9,  "CRITICAL Issues:",     critical_count)
-    label_value(10, "HIGH Issues:",         high_count)
+    instance = _instance_name(tenant_url)
+    label_value(5,  "SF Instance:",         instance if instance else "—")
+    label_value(6,  "Country:",             country)
+    label_value(7,  "Run Date:",            run_date)
+    label_value(8,  "Positions Checked:",   total_positions)
+    label_value(9,  "Total Issues Found:",  len(issues))
+    label_value(10, "CRITICAL Issues:",     critical_count)
+    label_value(11, "HIGH Issues:",         high_count)
 
-    # Check breakdown table header (shifted down by 2 to accommodate branding row)
+    # Check breakdown table header (shifted down by 1 to accommodate instance row)
     for col_idx, label in enumerate(["Check ID", "Description", "Severity", "Count"], start=1):
-        cell = ws.cell(row=12, column=col_idx, value=label)
+        cell = ws.cell(row=13, column=col_idx, value=label)
         cell.font = Font(bold=True, color="FFFFFF")
         cell.fill = HEADER_FILL
 
     from validators import CHECK_META
     for r_offset, (chk_id, meta) in enumerate(sorted(CHECK_META.items()), start=1):
         cnt = check_counts.get(chk_id, 0)
-        row = 12 + r_offset
+        row = 13 + r_offset
         ws.cell(row=row, column=1, value=chk_id)
         ws.cell(row=row, column=2, value=meta.get("description", ""))
         ws.cell(row=row, column=3, value=meta["severity"])
@@ -249,10 +262,11 @@ def write_html(
     issues: List[Dict[str, Any]],
     total_positions: int,
     country: str = "CA",
+    tenant_url: str = "",
 ) -> str:
     _ensure_output_dir()
     path = os.path.join(OUTPUT_DIR, f"position_integrity_{country}_{_datestamp()}.html")
-    html = _build_html(issues, total_positions, country)
+    html = _build_html(issues, total_positions, country, tenant_url)
     with open(path, "w", encoding="utf-8") as f:
         f.write(html)
     print(f"  HTML -> {path}")
@@ -263,8 +277,10 @@ def _build_html(
     issues: List[Dict[str, Any]],
     total_positions: int,
     country: str,
+    tenant_url: str = "",
 ) -> str:
-    run_dt = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    run_dt   = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    instance = _instance_name(tenant_url)
     critical_count = sum(1 for i in issues if i.get("Severity") == "CRITICAL")
     high_count     = sum(1 for i in issues if i.get("Severity") == "HIGH")
 
@@ -303,9 +319,15 @@ def _build_html(
           background: #f4f6f9; color: #333; font-size: 13px; }}
   h1 {{ font-size: 1.4rem; color: #1f3864; margin-bottom: 0.25rem; }}
   .header-bar {{ background: #1f3864; color: #fff; padding: 1rem 1.5rem;
-                 display: flex; align-items: center; gap: 1rem; }}
+                 display: flex; align-items: center; justify-content: space-between; gap: 1rem; }}
   .header-bar h1 {{ color: #fff; }}
   .header-bar .sub {{ font-size: 0.85rem; opacity: 0.8; }}
+  .instance-badge {{ background: rgba(255,255,255,.15); border: 1px solid rgba(255,255,255,.3);
+                     border-radius: 6px; padding: 0.35rem 0.75rem; font-size: 0.82rem;
+                     font-family: "SFMono-Regular", Consolas, monospace; white-space: nowrap;
+                     display: flex; flex-direction: column; align-items: flex-end; gap: 0.1rem; }}
+  .instance-badge .lbl {{ font-size: 0.7rem; opacity: 0.7; text-transform: uppercase; letter-spacing: 0.06em; }}
+  .instance-badge .val {{ font-weight: 700; font-size: 0.9rem; letter-spacing: 0.02em; }}
   .cards {{ display: flex; gap: 1rem; padding: 1rem 1.5rem; flex-wrap: wrap; }}
   .card {{ background: #fff; border-radius: 8px; padding: 1rem 1.5rem;
            flex: 1; min-width: 150px; box-shadow: 0 1px 4px rgba(0,0,0,.1); text-align: center; }}
@@ -368,6 +390,7 @@ def _build_html(
     <h1>SF Position Integrity Checker</h1>
     <div class="sub">Country: {country} &nbsp;|&nbsp; Run: {run_dt}</div>
   </div>
+  {f'''<div class="instance-badge"><span class="lbl">SF Instance</span><span class="val">{instance}</span></div>''' if instance else ''}
 </div>
 
 <div class="cards">
@@ -431,7 +454,7 @@ def _build_html(
   </table>
 </div>
 
-<footer>Generated by SF Position Integrity Checker v{VERSION} &nbsp;|&nbsp; {run_dt} &nbsp;|&nbsp; Country: {country}</footer>
+<footer>Generated by SF Position Integrity Checker v{VERSION} &nbsp;|&nbsp; {run_dt} &nbsp;|&nbsp; Country: {country}{f" &nbsp;|&nbsp; Instance: {instance}" if instance else ""}</footer>
 
 <script>
 const COL_SEVERITY = {COLUMNS.index("Severity")};
@@ -648,7 +671,7 @@ def write_all_reports(
 ) -> None:
     print(f"\n[REPORT] Writing output files to ./{OUTPUT_DIR}/")
     write_csv(issues, country)
-    write_excel(issues, total_positions, country)
-    write_html(issues, total_positions, country)
+    write_excel(issues, total_positions, country, tenant_url=tenant_url)
+    write_html(issues, total_positions, country, tenant_url=tenant_url)
     write_run_manifest(issues, total_positions, country, tenant_url=tenant_url)
     print_console_summary(issues, total_positions, country)

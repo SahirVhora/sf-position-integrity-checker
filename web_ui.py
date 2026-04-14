@@ -327,7 +327,44 @@ def auth_config():
     except Exception as exc:
         return jsonify({"error": str(exc) or "Unable to save auth configuration."}), 500
 
+    # Validate credentials with a lightweight test call
+    try:
+        import requests as _req
+        from auth import get_auth_headers
+        test_url = f"{config.ODATA_BASE_URL}FOCompany?$top=1&$format=json"
+        resp = _req.get(test_url, headers=get_auth_headers(), timeout=15)
+        if resp.status_code == 401:
+            return jsonify({"error": "Authentication failed — please check your username, password and Company ID."}), 401
+        if resp.status_code == 403:
+            return jsonify({"error": "Access denied — credentials saved but the API user may lack permissions."}), 403
+        if resp.status_code >= 500:
+            return jsonify({"error": f"SF server returned {resp.status_code} — credentials saved but the server may be temporarily unavailable."}), 502
+    except Exception as exc:
+        conn_err = str(exc)
+        if "Connection" in conn_err or "resolve" in conn_err.lower() or "timeout" in conn_err.lower():
+            return jsonify({"error": f"Could not reach the SF instance — check the Base URL. ({conn_err})"}), 502
+
     return jsonify({"status": "saved", "auth_method": auth_method})
+
+
+@app.route("/auth-config/clear", methods=["POST"])
+def auth_config_clear():
+    try:
+        import keyring as _kr
+        _KEYRING_SERVICE = "sf_position_integrity_checker"
+        for key in ("auth_method", "base_url", "username", "password", "company_id",
+                    "client_id", "user_id", "token_url", "private_key_path"):
+            try:
+                _kr.delete_password(_KEYRING_SERVICE, key)
+            except Exception:
+                pass
+    except Exception:
+        pass
+    try:
+        config._save_file_creds({})
+    except Exception:
+        pass
+    return jsonify({"status": "cleared"})
 
 
 @app.route("/run-status")
@@ -365,6 +402,30 @@ def reports_json():
     return jsonify(_report_files())
 
 
+def _read_manifest_instance(html_filename: str) -> str:
+    """Read the SF instance name from the run_manifest.json if available."""
+    manifest_path = os.path.join(OUTPUT_DIR, "run_manifest.json")
+    if not os.path.exists(manifest_path):
+        return ""
+    try:
+        import json, re
+        with open(manifest_path, encoding="utf-8") as f:
+            data = json.load(f)
+        tenant_url = data.get("tenant_url", "")
+        # manifest stores masked URL (***masked***.sapsf.eu) — fall back to config
+        if "***masked***" in tenant_url:
+            return ""
+        m = re.match(r"https?://([^./]+)", tenant_url.strip())
+        return m.group(1) if m else ""
+    except Exception:
+        return ""
+
+
+def _instance_from_config() -> str:
+    """Return the SF instance ID from Company ID config."""
+    return getattr(__import__("config"), "SF_INSTANCE_ID", "") or ""
+
+
 def _report_files() -> list[dict]:
     _ensure_output_dir()
     files = glob.glob(os.path.join(OUTPUT_DIR, "position_integrity_*.html"))
@@ -375,10 +436,12 @@ def _report_files() -> list[dict]:
         if not match:
             continue
         country, run_date = match.groups()
+        instance = _instance_from_config() or _read_manifest_instance(filename)
         result.append({
             "name": filename,
             "country": country,
             "run_date": datetime.strptime(run_date, "%Y%m%d").date().isoformat(),
+            "instance": instance,
             "url": url_for("download_output", filename=filename),
             "related": _related_outputs(filename),
         })

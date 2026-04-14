@@ -1,4 +1,5 @@
 .env
+config/credentials.json
 *.db
 data/
 output/

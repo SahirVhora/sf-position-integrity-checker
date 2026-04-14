@@ -3,7 +3,7 @@ config.py — Load credentials and configuration for SF Position Integrity Check
 
 Credential resolution order for Basic Auth (first source that provides all required values wins):
   1. .env file  (existing behaviour — unaffected for current users)
-  2. OS keyring via the `keyring` library
+  2. OS keyring via the `keyring` library (with file-based fallback when keyring unavailable)
   3. Interactive prompt (offers to save to keyring for next time)
 
 To store credentials in the OS keyring once:
@@ -11,6 +11,7 @@ To store credentials in the OS keyring once:
     store_credentials_to_keyring()
 """
 
+import json
 import os
 
 from dotenv import load_dotenv
@@ -119,6 +120,159 @@ if AUTH_METHOD == "basic":
 # ---------------------------------------------------------------------------
 
 _KEYRING_SERVICE = "sf_position_integrity_checker"
+_CREDS_FILE = os.path.join(os.path.dirname(__file__), "config", "credentials.json")
+
+
+def _load_file_creds() -> dict:
+    """Load credentials from the local file fallback."""
+    try:
+        with open(_CREDS_FILE, encoding="utf-8") as f:
+            return json.load(f)
+    except Exception:
+        return {}
+
+
+def _save_file_creds(data: dict) -> None:
+    """Save credentials to the local file fallback."""
+    try:
+        os.makedirs(os.path.dirname(_CREDS_FILE), exist_ok=True)
+        with open(_CREDS_FILE, "w", encoding="utf-8") as f:
+            json.dump(data, f, indent=2)
+    except Exception:
+        pass
+
+
+def get_saved_auth_config() -> dict:
+    """Return the currently saved auth configuration for display in the web UI."""
+    file_creds = _load_file_creds()
+
+    try:
+        import keyring as _kr
+        auth_method  = _kr.get_password(_KEYRING_SERVICE, "auth_method") or file_creds.get("auth_method") or "basic"
+        base_url     = _kr.get_password(_KEYRING_SERVICE, "base_url")     or file_creds.get("base_url")     or ODATA_BASE_URL or ""
+        username     = _kr.get_password(_KEYRING_SERVICE, "username")     or file_creds.get("username")     or SF_USERNAME    or ""
+        company_id   = _kr.get_password(_KEYRING_SERVICE, "company_id")   or file_creds.get("company_id")   or SF_INSTANCE_ID or ""
+        password     = _kr.get_password(_KEYRING_SERVICE, "password")     or file_creds.get("password")     or ""
+        client_id    = _kr.get_password(_KEYRING_SERVICE, "client_id")    or file_creds.get("client_id")    or OAUTH2_CLIENT_ID        or ""
+        user_id      = _kr.get_password(_KEYRING_SERVICE, "user_id")      or file_creds.get("user_id")      or OAUTH2_USER_ID          or ""
+        token_url    = _kr.get_password(_KEYRING_SERVICE, "token_url")    or file_creds.get("token_url")    or OAUTH2_TOKEN_URL        or ""
+        pk_path      = _kr.get_password(_KEYRING_SERVICE, "private_key_path") or file_creds.get("private_key_path") or OAUTH2_PRIVATE_KEY_PATH or ""
+    except Exception:
+        auth_method = file_creds.get("auth_method") or AUTH_METHOD
+        base_url    = file_creds.get("base_url")    or ODATA_BASE_URL
+        username    = file_creds.get("username")    or SF_USERNAME
+        company_id  = file_creds.get("company_id")  or SF_INSTANCE_ID
+        password    = file_creds.get("password")    or ""
+        client_id   = file_creds.get("client_id")   or OAUTH2_CLIENT_ID
+        user_id     = file_creds.get("user_id")     or OAUTH2_USER_ID
+        token_url   = file_creds.get("token_url")   or OAUTH2_TOKEN_URL
+        pk_path     = file_creds.get("private_key_path") or OAUTH2_PRIVATE_KEY_PATH
+    return {
+        "auth_method":       auth_method,
+        "base_url":          base_url,
+        "username":          username,
+        "company_id":        company_id,
+        "password_saved":    bool(password),
+        "client_id":         client_id,
+        "user_id":           user_id,
+        "token_url":         token_url,
+        "private_key_path":  pk_path,
+    }
+
+
+def set_basic_auth_config(base_url: str, username: str, password: str, company_id: str) -> None:
+    """Save Basic Auth credentials and update module-level globals for the running process."""
+    keyring_ok = False
+    try:
+        import keyring as _kr
+        _kr.set_password(_KEYRING_SERVICE, "auth_method",  "basic")
+        _kr.set_password(_KEYRING_SERVICE, "base_url",     base_url)
+        _kr.set_password(_KEYRING_SERVICE, "username",     username)
+        _kr.set_password(_KEYRING_SERVICE, "password",     password)
+        _kr.set_password(_KEYRING_SERVICE, "company_id",   company_id or "")
+        keyring_ok = True
+    except Exception:
+        pass  # keyring unavailable — fall through to file-based storage
+
+    if not keyring_ok:
+        existing = _load_file_creds()
+        existing.update({
+            "auth_method": "basic",
+            "base_url":    base_url,
+            "username":    username,
+            "password":    password,
+            "company_id":  company_id or "",
+        })
+        _save_file_creds(existing)
+
+    # Override os.environ so resolve_basic_credentials() picks these up immediately
+    # even if a .env file was loaded at startup with different values.
+    os.environ["SF_ODATA_BASE_URL"] = base_url
+    os.environ["SF_USERNAME"]       = username
+    os.environ["SF_PASSWORD"]       = password
+    os.environ["SF_COMPANY_ID"]     = company_id or ""
+
+    # Re-initialise module-level globals so the current process uses the new creds.
+    _init_basic_auth()
+
+
+def set_oauth2_auth_config(
+    client_id: str,
+    company_id: str,
+    user_id: str,
+    token_url: str,
+    private_key_path: str,
+    base_url: str,
+) -> None:
+    """Save OAuth2 credentials and update module-level globals for the running process."""
+    keyring_ok = False
+    try:
+        import keyring as _kr
+        _kr.set_password(_KEYRING_SERVICE, "auth_method",       "oauth2")
+        _kr.set_password(_KEYRING_SERVICE, "base_url",          base_url)
+        _kr.set_password(_KEYRING_SERVICE, "client_id",         client_id)
+        _kr.set_password(_KEYRING_SERVICE, "company_id",        company_id)
+        _kr.set_password(_KEYRING_SERVICE, "user_id",           user_id)
+        _kr.set_password(_KEYRING_SERVICE, "token_url",         token_url)
+        _kr.set_password(_KEYRING_SERVICE, "private_key_path",  private_key_path)
+        keyring_ok = True
+    except Exception:
+        pass
+
+    if not keyring_ok:
+        existing = _load_file_creds()
+        existing.update({
+            "auth_method":       "oauth2",
+            "base_url":          base_url,
+            "client_id":         client_id,
+            "company_id":        company_id,
+            "user_id":           user_id,
+            "token_url":         token_url,
+            "private_key_path":  private_key_path,
+        })
+        _save_file_creds(existing)
+
+    os.environ["SF_AUTH_METHOD"]        = "oauth2"
+    os.environ["SF_CLIENT_ID"]          = client_id
+    os.environ["SF_COMPANY_ID"]         = company_id
+    os.environ["SF_USER_ID"]            = user_id
+    os.environ["SF_TOKEN_URL"]          = token_url
+    os.environ["SF_PRIVATE_KEY_PATH"]   = private_key_path
+
+    raw_url = base_url.rstrip("/")
+    if raw_url.endswith("/odata/v2"):
+        raw_url = raw_url[: -len("/odata/v2")]
+
+    global AUTH_METHOD, OAUTH2_CLIENT_ID, OAUTH2_COMPANY_ID, OAUTH2_USER_ID  # noqa: PLW0603
+    global OAUTH2_TOKEN_URL, OAUTH2_PRIVATE_KEY_PATH, SF_BASE_URL, ODATA_BASE_URL  # noqa: PLW0603
+    AUTH_METHOD              = "oauth2"
+    OAUTH2_CLIENT_ID         = client_id
+    OAUTH2_COMPANY_ID        = company_id
+    OAUTH2_USER_ID           = user_id
+    OAUTH2_TOKEN_URL         = token_url
+    OAUTH2_PRIVATE_KEY_PATH  = private_key_path
+    SF_BASE_URL              = raw_url
+    ODATA_BASE_URL           = f"{raw_url}/odata/v2/" if raw_url else ""
 
 
 def store_credentials_to_keyring(
