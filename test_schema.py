@@ -4,7 +4,7 @@ test_schema.py — Offline test suite for the refactored SQLite schema.
 Runs without any SF API credentials. Uses synthetic data to verify:
   1. Schema structure  (tables, indexes, views, CHECK constraints)
   2. Junction table population and set-based lookups
-  3. All integrity checks CHK-09 to CHK-18 (pass + fail cases)
+  3. All integrity checks CHK-01 to CHK-09 (pass + fail cases)
   4. validation_results save/load (new schema with extract_meta_id FK)
   5. Date normalisation (epoch-millis → YYYY-MM-DD)
   6. cust_sub_department standardised column names
@@ -102,7 +102,7 @@ def test_schema_structure():
         assert_true(f"table '{t}' exists", t in existing)
 
     # Views
-    expected_views = {"chk09_failures", "chk11_failures", "chk12_failures"}
+    expected_views = {"chk01_failures", "chk03_failures", "chk04_failures"}
     existing_views = {r[0] for r in c.execute(
         "SELECT name FROM sqlite_master WHERE type='view'"
     )}
@@ -183,7 +183,7 @@ def test_check_constraints():
             "INSERT INTO validation_results "
             "(extract_meta_id,run_timestamp,position_code,check_id,check_category,"
             "failed_field,issue_description,severity) VALUES (?,?,?,?,?,?,?,?)",
-            (meta_id, "2024-01-01T00:00:00", "P001", "CHK-09",
+            (meta_id, "2024-01-01T00:00:00", "P001", "CHK-01",
              "Hierarchy Alignment", "department", "desc", "INVALID")
         ))
     c.close()
@@ -397,86 +397,86 @@ def test_check_logic():
     issues = validate_positions([_make_position()], lookups)
     assert_eq("valid position → 0 issues", len(issues), 0)
 
-    # CHK-09: subdept maps to wrong department
+    # CHK-01: subdept maps to wrong department
     issues = validate_positions(
         [_make_position(department="DEPT-WRONG")], lookups
     )
-    chk09 = [i for i in issues if i["Check ID"] == "CHK-09"]
-    assert_true("CHK-09 fires when subdept dept mismatch", len(chk09) == 1)
-    assert_eq("CHK-09 severity", chk09[0]["Severity"], "CRITICAL")
+    chk09 = [i for i in issues if i["Check ID"] == "CHK-01"]
+    assert_true("CHK-01 fires when subdept dept mismatch", len(chk09) == 1)
+    assert_eq("CHK-01 severity", chk09[0]["Severity"], "CRITICAL")
 
-    # CHK-09: skipped when subdept not in lookup
+    # CHK-01: skipped when subdept not in lookup
     issues = validate_positions(
         [_make_position(cust_subDepartment="SD-UNKNOWN", department="DEPT-001")], lookups
     )
-    chk09 = [i for i in issues if i["Check ID"] == "CHK-09"]
-    assert_eq("CHK-09 skipped when subdept not in lookup", len(chk09), 0)
+    chk09 = [i for i in issues if i["Check ID"] == "CHK-01"]
+    assert_eq("CHK-01 skipped when subdept not in lookup", len(chk09), 0)
 
-    # CHK-10: department maps to wrong division
+    # CHK-02: department maps to wrong division
     issues = validate_positions(
         [_make_position(division="DIV-WRONG")], lookups
     )
-    chk10 = [i for i in issues if i["Check ID"] == "CHK-10"]
-    assert_true("CHK-10 fires when dept division mismatch", len(chk10) == 1)
+    chk10 = [i for i in issues if i["Check ID"] == "CHK-02"]
+    assert_true("CHK-02 fires when dept division mismatch", len(chk10) == 1)
 
-    # CHK-11: BU-001 is allowed for DIV-001 → no issue
+    # CHK-03: BU-001 is allowed for DIV-001 → no issue
     issues = validate_positions([_make_position(businessUnit="BU-001")], lookups)
-    chk11 = [i for i in issues if i["Check ID"] == "CHK-11"]
-    assert_eq("CHK-11 passes for BU-001 in DIV-001", len(chk11), 0)
+    chk11 = [i for i in issues if i["Check ID"] == "CHK-03"]
+    assert_eq("CHK-03 passes for BU-001 in DIV-001", len(chk11), 0)
 
-    # CHK-11: BU-002 is also allowed for DIV-001 → no issue (multi-BU division)
+    # CHK-03: BU-002 is also allowed for DIV-001 → no issue (multi-BU division)
     issues = validate_positions([_make_position(businessUnit="BU-002", company="LE-001")], lookups)
-    chk11 = [i for i in issues if i["Check ID"] == "CHK-11"]
-    assert_eq("CHK-11 passes for BU-002 in DIV-001 (multi-BU)", len(chk11), 0)
+    chk11 = [i for i in issues if i["Check ID"] == "CHK-03"]
+    assert_eq("CHK-03 passes for BU-002 in DIV-001 (multi-BU)", len(chk11), 0)
 
-    # CHK-11: BU-999 is NOT in DIV-001 → issue
+    # CHK-03: BU-999 is NOT in DIV-001 → issue
     issues = validate_positions([_make_position(businessUnit="BU-999")], lookups)
-    chk11 = [i for i in issues if i["Check ID"] == "CHK-11"]
-    assert_true("CHK-11 fires for BU-999 not in DIV-001", len(chk11) == 1)
-    assert_true("CHK-11 description contains both allowed BUs",
+    chk11 = [i for i in issues if i["Check ID"] == "CHK-03"]
+    assert_true("CHK-03 fires for BU-999 not in DIV-001", len(chk11) == 1)
+    assert_true("CHK-03 description contains both allowed BUs",
                 "BU-001" in chk11[0]["Issue Description"] and "BU-002" in chk11[0]["Issue Description"])
 
-    # CHK-12: LE-001 is allowed for BU-001 → no issue
+    # CHK-04: LE-001 is allowed for BU-001 → no issue
     issues = validate_positions([_make_position(company="LE-001", businessUnit="BU-001")], lookups)
-    chk12 = [i for i in issues if i["Check ID"] == "CHK-12"]
-    assert_eq("CHK-12 passes for LE-001 in BU-001", len(chk12), 0)
+    chk12 = [i for i in issues if i["Check ID"] == "CHK-04"]
+    assert_eq("CHK-04 passes for LE-001 in BU-001", len(chk12), 0)
 
-    # CHK-12: LE-002 is NOT in BU-001 → issue
+    # CHK-04: LE-002 is NOT in BU-001 → issue
     issues = validate_positions([_make_position(company="LE-002", businessUnit="BU-001")], lookups)
-    chk12 = [i for i in issues if i["Check ID"] == "CHK-12"]
-    assert_true("CHK-12 fires for LE-002 not in BU-001", len(chk12) == 1)
+    chk12 = [i for i in issues if i["Check ID"] == "CHK-04"]
+    assert_true("CHK-04 fires for LE-002 not in BU-001", len(chk12) == 1)
 
-    # CHK-12: LE-002 IS in BU-002 → no issue
+    # CHK-04: LE-002 IS in BU-002 → no issue
     issues = validate_positions([_make_position(company="LE-002", businessUnit="BU-002",
                                                 division="DIV-001")], lookups)
-    chk12 = [i for i in issues if i["Check ID"] == "CHK-12"]
-    assert_eq("CHK-12 passes for LE-002 in BU-002 (multi-LE)", len(chk12), 0)
+    chk12 = [i for i in issues if i["Check ID"] == "CHK-04"]
+    assert_eq("CHK-04 passes for LE-002 in BU-002 (multi-LE)", len(chk12), 0)
 
-    # CHK-13: CC-001 → BU-001 passes
+    # CHK-05: CC-001 → BU-001 passes
     issues = validate_positions([_make_position(costCenter="CC-001", businessUnit="BU-001")], lookups)
-    chk13 = [i for i in issues if i["Check ID"] == "CHK-13"]
-    assert_eq("CHK-13 passes for CC-001→BU-001", len(chk13), 0)
+    chk13 = [i for i in issues if i["Check ID"] == "CHK-05"]
+    assert_eq("CHK-05 passes for CC-001→BU-001", len(chk13), 0)
 
-    # CHK-13: CC-001 → BU-002 fails
+    # CHK-05: CC-001 → BU-002 fails
     issues = validate_positions([_make_position(costCenter="CC-001", businessUnit="BU-002",
                                                 company="LE-001")], lookups)
-    chk13 = [i for i in issues if i["Check ID"] == "CHK-13"]
-    assert_true("CHK-13 fires for CC-001→BU-002 mismatch", len(chk13) == 1)
+    chk13 = [i for i in issues if i["Check ID"] == "CHK-05"]
+    assert_true("CHK-05 fires for CC-001→BU-002 mismatch", len(chk13) == 1)
 
-    # CHK-15: job function mismatch
+    # CHK-06: job function mismatch
     issues = validate_positions([_make_position(cust_JobFunction="JF-WRONG")], lookups)
-    chk15 = [i for i in issues if i["Check ID"] == "CHK-15"]
-    assert_true("CHK-15 fires for job function mismatch", len(chk15) == 1)
+    chk15 = [i for i in issues if i["Check ID"] == "CHK-06"]
+    assert_true("CHK-06 fires for job function mismatch", len(chk15) == 1)
 
-    # CHK-17: grade mismatch
+    # CHK-08: grade mismatch
     issues = validate_positions([_make_position(cust_GlobalJobLevel="G6")], lookups)
-    chk17 = [i for i in issues if i["Check ID"] == "CHK-17"]
-    assert_true("CHK-17 fires for grade mismatch", len(chk17) == 1)
+    chk17 = [i for i in issues if i["Check ID"] == "CHK-08"]
+    assert_true("CHK-08 fires for grade mismatch", len(chk17) == 1)
 
-    # CHK-17: fires even when position GJL is blank (catches missing GJL)
+    # CHK-08: fires even when position GJL is blank (catches missing GJL)
     issues = validate_positions([_make_position(cust_GlobalJobLevel="")], lookups)
-    chk17 = [i for i in issues if i["Check ID"] == "CHK-17"]
-    assert_true("CHK-17 fires when position GJL is blank", len(chk17) == 1)
+    chk17 = [i for i in issues if i["Check ID"] == "CHK-08"]
+    assert_true("CHK-08 fires when position GJL is blank", len(chk17) == 1)
 
 
 # ---------------------------------------------------------------------------
@@ -503,7 +503,7 @@ def test_validation_results_save():
         "Job Code":             "JC-001",
         "Cost Centre":          "CC-001",
         "Location":             "LOC-001",
-        "Check ID":             "CHK-09",
+        "Check ID":             "CHK-01",
         "Check Category":       "Hierarchy Alignment",
         "Failed Field":         "department",
         "Issue Description":    "Sub Department 'SD-001' belongs to Department 'DEPT-001' ...",
@@ -517,7 +517,7 @@ def test_validation_results_save():
 
     last = rows[-1]
     assert_eq("position_code saved", last["position_code"], "P-001")
-    assert_eq("check_id saved", last["check_id"], "CHK-09")
+    assert_eq("check_id saved", last["check_id"], "CHK-01")
     assert_eq("severity saved", last["severity"], "CRITICAL")
     assert_eq("extract_meta_id FK set", last["extract_meta_id"], meta_id)
     # Snapshot columns removed — these must NOT be present
@@ -538,33 +538,33 @@ def test_audit_views():
     print("\n--- 7. Audit views ---")
     c = _conn()
 
-    # chk09_failures: should find the intentional mismatch (SD-001 → DEPT-001 but position has DEPT-WRONG)
+    # chk01_failures: should find the intentional mismatch (SD-001 → DEPT-001 but position has DEPT-WRONG)
     c.execute("INSERT OR REPLACE INTO positions (code, cust_subDepartment, department) "
               "VALUES ('VIEW-TEST-P1', 'SD-001', 'DEPT-WRONG')")
     c.commit()
-    rows = c.execute("SELECT * FROM chk09_failures WHERE position_code='VIEW-TEST-P1'").fetchall()
-    assert_true("chk09_failures detects SD-001/DEPT-WRONG mismatch", len(rows) == 1)
+    rows = c.execute("SELECT * FROM chk01_failures WHERE position_code='VIEW-TEST-P1'").fetchall()
+    assert_true("chk01_failures detects SD-001/DEPT-WRONG mismatch", len(rows) == 1)
 
-    # chk09_failures: correct position should not appear
+    # chk01_failures: correct position should not appear
     c.execute("INSERT OR REPLACE INTO positions (code, cust_subDepartment, department) "
               "VALUES ('VIEW-TEST-P2', 'SD-001', 'DEPT-001')")
     c.commit()
-    rows = c.execute("SELECT * FROM chk09_failures WHERE position_code='VIEW-TEST-P2'").fetchall()
-    assert_eq("chk09_failures: correct position not flagged", len(rows), 0)
+    rows = c.execute("SELECT * FROM chk01_failures WHERE position_code='VIEW-TEST-P2'").fetchall()
+    assert_eq("chk01_failures: correct position not flagged", len(rows), 0)
 
-    # chk11_failures: BU-999 not in DIV-001
+    # chk03_failures: BU-999 not in DIV-001
     c.execute("INSERT OR REPLACE INTO positions (code, division, businessUnit) "
               "VALUES ('VIEW-TEST-P3', 'DIV-001', 'BU-999')")
     c.commit()
-    rows = c.execute("SELECT * FROM chk11_failures WHERE position_code='VIEW-TEST-P3'").fetchall()
-    assert_true("chk11_failures detects BU-999 not in DIV-001", len(rows) == 1)
+    rows = c.execute("SELECT * FROM chk03_failures WHERE position_code='VIEW-TEST-P3'").fetchall()
+    assert_true("chk03_failures detects BU-999 not in DIV-001", len(rows) == 1)
 
-    # chk12_failures: LE-002 not in BU-001
+    # chk04_failures: LE-002 not in BU-001
     c.execute("INSERT OR REPLACE INTO positions (code, businessUnit, company) "
               "VALUES ('VIEW-TEST-P4', 'BU-001', 'LE-002')")
     c.commit()
-    rows = c.execute("SELECT * FROM chk12_failures WHERE position_code='VIEW-TEST-P4'").fetchall()
-    assert_true("chk12_failures detects LE-002 not in BU-001", len(rows) == 1)
+    rows = c.execute("SELECT * FROM chk04_failures WHERE position_code='VIEW-TEST-P4'").fetchall()
+    assert_true("chk04_failures detects LE-002 not in BU-001", len(rows) == 1)
 
     c.close()
 

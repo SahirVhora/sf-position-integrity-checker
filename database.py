@@ -253,10 +253,10 @@ CREATE TABLE emp_job (
 );
 
 -- ---------------------------------------------------------------------------
--- Audit views — SQL equivalents of CHK-09, CHK-11, CHK-12 for inspection
+-- Audit views — SQL equivalents of CHK-01, CHK-03, CHK-04 for inspection
 -- ---------------------------------------------------------------------------
 
-CREATE VIEW chk09_failures AS
+CREATE VIEW chk01_failures AS
 SELECT
     p.code               AS position_code,
     p.externalName_en_US AS position_title,
@@ -269,7 +269,7 @@ WHERE p.department IS NOT NULL AND p.department != ''
   AND sd.cust_Department IS NOT NULL AND sd.cust_Department != ''
   AND sd.cust_Department != p.department;
 
-CREATE VIEW chk11_failures AS
+CREATE VIEW chk03_failures AS
 SELECT
     p.code               AS position_code,
     p.externalName_en_US AS position_title,
@@ -283,7 +283,7 @@ WHERE p.businessUnit IS NOT NULL AND p.businessUnit != ''
       WHERE division_code = p.division
   );
 
-CREATE VIEW chk12_failures AS
+CREATE VIEW chk04_failures AS
 SELECT
     p.code               AS position_code,
     p.externalName_en_US AS position_title,

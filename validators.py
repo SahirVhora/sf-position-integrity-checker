@@ -1,5 +1,5 @@
 """
-validators.py — Integrity checks CHK-09 to CHK-18 for positions.
+validators.py — Integrity checks CHK-01 to CHK-09 for positions.
 
 Check definitions are loaded from config/rules.yaml at import time.
 The rule engine supports three rule types:
@@ -218,7 +218,7 @@ def build_lookups_from_db() -> Dict[str, Any]:
     return them in the same structure expected by validate_positions().
 
     Junction tables are loaded as set-valued dicts (key → frozenset of codes)
-    for O(1) membership testing in CHK-11, CHK-12, CHK-13.
+    for O(1) membership testing in CHK-03, CHK-04, CHK-05.
     """
     from database import load_table
 

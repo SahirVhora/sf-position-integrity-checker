@@ -164,18 +164,18 @@ SAMPLES = {
             ("All CRITICAL issues",
              "SELECT position_code, position_title, check_id, issue_description "
              "FROM validation_results WHERE severity='CRITICAL' ORDER BY check_id, position_code;"),
-            ("CHK-09 issues with sub-dept/dept context (join to positions)",
+            ("CHK-01 issues with sub-dept/dept context (join to positions)",
              "SELECT vr.position_code, vr.position_title, "
              "p.cust_subDepartment, p.department, vr.issue_description "
              "FROM validation_results vr "
              "LEFT JOIN positions p ON vr.position_code = p.code "
-             "WHERE vr.check_id='CHK-09';"),
-            ("CHK-17 issues with job code context (join to positions)",
+             "WHERE vr.check_id='CHK-01';"),
+            ("CHK-08 issues with job code context (join to positions)",
              "SELECT vr.position_code, vr.position_title, "
              "p.jobCode, p.cust_GlobalJobLevel, vr.issue_description "
              "FROM validation_results vr "
              "LEFT JOIN positions p ON vr.position_code = p.code "
-             "WHERE vr.check_id='CHK-17';"),
+             "WHERE vr.check_id='CHK-08';"),
             ("All issues for a specific position (edit code)",
              "SELECT check_id, check_category, issue_description, severity "
              "FROM validation_results WHERE position_code = '63109362';"),
@@ -199,7 +199,7 @@ DIAGNOSTICS = [
      "AND sd.externalCode IS NULL "
      "ORDER BY p.cust_subDepartment;"),
 
-    ("Sub-dept → Dept mismatches (CHK-09 cross-check)",
+    ("Sub-dept → Dept mismatches (CHK-01 cross-check)",
      "SELECT p.code, p.externalName_en_US, p.cust_subDepartment, "
      "p.department AS pos_dept, sd.cust_Department AS sd_dept "
      "FROM positions p "
@@ -207,7 +207,7 @@ DIAGNOSTICS = [
      "WHERE sd.cust_Department != p.department "
      "ORDER BY p.code;"),
 
-    ("Job code grade vs position GlobalJobLevel mismatch (CHK-17 cross-check)",
+    ("Job code grade vs position GlobalJobLevel mismatch (CHK-08 cross-check)",
      "SELECT p.code, p.externalName_en_US, p.jobCode, "
      "jc.grade AS jc_grade, p.cust_GlobalJobLevel AS pos_gjl "
      "FROM positions p "
@@ -216,7 +216,7 @@ DIAGNOSTICS = [
      "AND (p.cust_GlobalJobLevel IS NULL OR p.cust_GlobalJobLevel != jc.grade) "
      "ORDER BY p.code;"),
 
-    ("BU → Legal Entity mismatches (CHK-12 cross-check, uses junction table)",
+    ("BU → Legal Entity mismatches (CHK-04 cross-check, uses junction table)",
      "SELECT p.code, p.businessUnit AS pos_bu, p.company AS pos_le "
      "FROM positions p "
      "LEFT JOIN fo_bu_legal_entity ble "

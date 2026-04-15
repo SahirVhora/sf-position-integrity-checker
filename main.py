@@ -90,7 +90,7 @@ def _do_validate(country: str) -> None:
     positions = load_table("positions")
     lookups   = build_lookups_from_db()
 
-    print(f"[INFO] {len(positions)} positions loaded. Running validation (CHK-09 to CHK-18)...")
+    print(f"[INFO] {len(positions)} positions loaded. Running validation (CHK-01 to CHK-09)...")
     issues = validate_positions(positions, lookups)
     print(f"[INFO] Validation complete. {len(issues)} issue(s) found.")
 
