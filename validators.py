@@ -44,6 +44,7 @@ CHECK_META: Dict[str, Dict[str, str]] = {
         "field":       _failed_field(rule),
         "severity":    rule["severity"],
         "description": rule.get("description", ""),
+        "visible":     rule.get("visible", True),
     }
     for rule in _ALL_RULES  # include disabled rules so the summary table is complete
 }

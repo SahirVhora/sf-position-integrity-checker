@@ -58,15 +58,17 @@ This replaces what is currently a manual process — running multiple SF reports
 
 | Check | Description | Severity |
 |-------|-------------|----------|
-| CHK-01 | Sub Department must belong to the Position's Department | CRITICAL |
-| CHK-02 | Department must belong to the Position's Division | CRITICAL |
-| CHK-03 | Division must be linked to the Position's Business Unit | CRITICAL |
-| CHK-04 | Business Unit must be linked to the Position's Legal Entity | CRITICAL |
-| CHK-05 | Cost Centre must be linked to the Position's Business Unit | CRITICAL |
-| CHK-06 | Job Code Job Family must match Position's Job Family | HIGH |
-| CHK-07 | Job Code Sub Family must match Position's Job Sub Family | HIGH |
-| CHK-08 | Job Code Grade must match Position's Global Job Level | HIGH |
-| CHK-09 | Job Code Career Path must match Position's Career Path | HIGH |
+| CHK-09 | Sub Department must belong to the Position's Department | CRITICAL |
+| CHK-10 | Department must belong to the Position's Division | CRITICAL |
+| CHK-11 | Division must be linked to the Position's Business Unit | CRITICAL |
+| CHK-12 | Business Unit must be linked to the Position's Legal Entity | CRITICAL |
+| CHK-13 | Cost Centre must be linked to the Position's Business Unit | CRITICAL |
+| CHK-15 | Job Code Job Family must match Position's Job Family | HIGH |
+| CHK-16 | Job Code Sub Family must match Position's Job Sub Family | HIGH |
+| CHK-17 | Job Code Grade must match Position's Global Job Level | HIGH |
+| CHK-18 | Job Code Career Path must match Position's Career Path | HIGH |
+
+Rules are defined in `config/rules.yaml`. Each rule has an `enabled` flag and a `visible` flag — see [Customising rules](#customising-rules) for details.
 
 ---
 
@@ -91,13 +93,17 @@ SF Tenant (OData v2)
         │                    can re-validate without re-fetching from SF
         │
         ▼
-  [Phase 4: Rule Engine] ──  config/rules.yaml drives CHK-01 to CHK-09 (configurable)
+  [Phase 4: Rule Engine] ──  config/rules.yaml drives CHK-09 to CHK-18 (configurable)
         │                    Each rule defines the relationship to validate,
         │                    which fields to compare, and the severity if it fails
         │
         ▼
   [Phase 5: Reports]     ──  HTML (filterable) │ Excel workbook │ Console table │ run_manifest.json
 ```
+
+### Resilient fetching — partial results are never fatal
+
+Each foundation entity is fetched independently. If an entity does not exist on a given tenant (e.g. `FOJobClassLocalGBR` returning a 404, or a custom entity with zero results), the fetcher logs a `[WARN]` and returns an empty result — it does **not** halt the run. Subsequent fetchers (Cost Centres, Locations, EmpJob, etc.) always execute regardless of what any earlier fetcher returns. Checks that depend on a missing entity are silently skipped (no false-positive issues are raised), and a `[WARN]` is printed if a fetcher returns 0 records when the positions referenced at least one code for that entity.
 
 ### Why the two-phase fetch matters
 
@@ -193,7 +199,7 @@ After each run, the following files are written to `./output/`:
 | **HTML report** | Interactive browser report with filter dropdowns (Severity, Check ID, Category), full-text search, column sort, and one-click export. |
 | **Excel workbook** | Two sheets: *Issues* (colour-coded rows by severity) and *Summary* (run statistics, SF instance, per-check breakdown). |
 | **CSV** | Flat export of all issues — suitable for further analysis or loading into another tool. |
-| **run_manifest.json** | Machine-readable JSON summary of the run — checks executed, issue counts, timestamp. Suitable for CI pipelines or audit trails. |
+| **run_manifest.json** | Machine-readable JSON summary of the run — checks executed, issue counts (including `hidden_issues_count` for rules suppressed by `visible: false`), timestamp. Suitable for CI pipelines or audit trails. |
 
 Each report permanently records the SF instance (Company ID) it was run against, so historical reports in the web UI always show the correct instance even after switching tenants.
 
@@ -251,20 +257,42 @@ The web UI validates credentials against the SF instance on every save and retur
 
 ## Customising rules
 
-Rules are defined in `config/rules.yaml`. You can disable a check or change its severity without touching Python:
+Rules are defined in `config/rules.yaml`. Each rule supports two independent control flags:
+
+| Flag | Behaviour |
+|------|-----------|
+| `enabled: false` | Rule is completely skipped — no check runs and no finding is recorded. |
+| `visible: false` | Rule still runs and findings are recorded in `run_manifest.json`, but they are **suppressed from HTML, Excel, and CSV output**. Use this for checks that are architecturally valid but not relevant to a particular client's SF design (e.g. a client that does not use Job Class Local). |
+
+Example — disable a check entirely:
 
 ```yaml
-rules:
-  - id: CHK-08
-    enabled: false          # disable this check entirely
+  - id: CHK-17
+    enabled: false          # skip this check — no finding recorded
+    visible: true
     description: "Job Code Grade must match Position's Global Job Level"
-    severity: HIGH          # change to CRITICAL if needed
+    severity: HIGH
     type: scalar_match
     position_field: jobCode
     lookup_key: job_codes
     lookup_field: grade
     compare_to_position_field: cust_GlobalJobLevel
     fire_when_lookup_field_not_null: true
+```
+
+Example — run a check but hide its findings from client-facing reports:
+
+```yaml
+  - id: CHK-13
+    enabled: true
+    visible: false          # findings recorded in run_manifest.json but hidden from HTML/Excel/CSV
+    description: "Cost Centre must be linked to the Position's Business Unit"
+    severity: CRITICAL
+    type: set_membership
+    position_field: costCenter
+    lookup_key: cost_centers
+    junction_lookup_key: cc_to_bus
+    compare_to_position_field: businessUnit
 ```
 
 Changes take effect immediately on the next run — no restart needed.
@@ -293,7 +321,7 @@ An offline test suite is included — no SF credentials needed:
 python test_schema.py
 ```
 
-Tests cover: SQLite schema structure, CHECK constraints, date normalisation, junction table population, all integrity checks (CHK-01 to CHK-09 pass + fail cases), validation result persistence, audit SQL views, and pipe-separated junction saving.
+Tests cover: SQLite schema structure, CHECK constraints, date normalisation, junction table population, all integrity checks (CHK-09 to CHK-18 pass + fail cases), validation result persistence, audit SQL views, and pipe-separated junction saving.
 
 ---
 

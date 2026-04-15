@@ -88,6 +88,12 @@ def _normalise_dates(issues: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
     return out
 
 
+def _visible_issues(issues: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    """Return only issues whose rule has visible: true (default)."""
+    from validators import CHECK_META
+    return [i for i in issues if CHECK_META.get(i.get("Check ID", ""), {}).get("visible", True)]
+
+
 def _df_from_issues(issues: List[Dict[str, Any]]) -> pd.DataFrame:
     normalised = _normalise_dates(issues)
     if normalised:
@@ -642,6 +648,8 @@ def write_run_manifest(
     enabled_ids     = set(checks_run)
     checks_disabled = checks_disabled or sorted(all_check_ids - enabled_ids)
 
+    visible = _visible_issues(issues)
+    hidden_n   = len(issues) - len(visible)
     critical_n = sum(1 for i in issues if i.get("Severity") == "CRITICAL")
     high_n     = sum(1 for i in issues if i.get("Severity") == "HIGH")
 
@@ -653,6 +661,7 @@ def write_run_manifest(
         "country":            country,
         "positions_checked":  total_positions,
         "total_issues":       len(issues),
+        "hidden_issues_count": hidden_n,
         "critical_issues":    critical_n,
         "high_issues":        high_n,
         "checks_run":         checks_run,
@@ -689,9 +698,10 @@ def write_all_reports(
     instance_id: str = "",
 ) -> None:
     print(f"\n[REPORT] Writing output files to ./{OUTPUT_DIR}/")
-    write_csv(issues, country)
-    write_excel(issues, total_positions, country, tenant_url=tenant_url, instance_id=instance_id)
-    write_html(issues, total_positions, country, tenant_url=tenant_url, instance_id=instance_id)
+    visible = _visible_issues(issues)
+    write_csv(visible, country)
+    write_excel(visible, total_positions, country, tenant_url=tenant_url, instance_id=instance_id)
+    write_html(visible, total_positions, country, tenant_url=tenant_url, instance_id=instance_id)
     write_run_manifest(issues, total_positions, country, tenant_url=tenant_url)
     write_report_meta(country, instance_id)
     print_console_summary(issues, total_positions, country)
