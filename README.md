@@ -8,6 +8,35 @@ A Python tool that validates SAP SuccessFactors **Position** object data integri
 
 ---
 
+## Project Structure
+
+```
+sf-position-integrity-checker/
+├── main.py               # CLI entry point — interactive run-mode and date-picker menus
+├── web_ui.py             # Flask web server — browser interface with live progress
+├── api_client.py         # HTTP layer — routes requests to basic.py or oauth2.py
+├── fetchers.py           # OData fetchers — two-phase position + foundation data pull
+├── validators.py         # Rule engine — loads rules.yaml, runs CHK-01 to CHK-09
+├── reporters.py          # Output writers — HTML, Excel, CSV, run_manifest.json
+├── database.py           # SQLite helpers — schema, upserts, audit views
+├── config.py             # Credential resolution — .env, keyring, interactive prompt
+├── test_schema.py        # Offline test suite — no SF credentials needed
+├── auth/
+│   ├── basic.py          # Basic Auth request handler
+│   └── oauth2.py         # OAuth2 SAML Bearer token handler (signed assertion + auto-refresh)
+├── config/
+│   ├── rules.yaml        # Check definitions — enable/disable/hide individual rules
+│   └── credentials.json  # Web UI credential store (git-ignored)
+├── templates/
+│   └── index.html        # Web UI Jinja2 template
+├── docs/
+│   └── oauth2_setup.md   # Step-by-step OAuth2 configuration guide
+├── output/               # Generated reports (HTML, Excel, CSV, JSON manifest)
+└── data/                 # Local SQLite database (git-ignored)
+```
+
+---
+
 ## The Problem This Solves
 
 ### After Go-Live, Foundation Data Keeps Changing — Positions Don't Self-Correct
@@ -160,9 +189,26 @@ On a large SF tenant with thousands of foundation objects, this means you might 
 
 3. **Run**
    ```bash
-   python main.py
+   python main.py --country GBR
    ```
-   The tool presents an interactive menu — choose your run mode and country code.
+   The tool presents an interactive menu with three prompts:
+
+   **Step 1 — Run mode:**
+   ```
+   [1] Extract & Validate  — Fetch from SF → save to DB → validate → report
+   [2] Only Validate       — Validate using existing DB data → report
+   [3] Only Extract        — Fetch from SF → save to DB (no validation)
+   ```
+
+   **Step 2 — As-of date** (used for position effective-date filtering):
+   ```
+   [1] Today      (YYYY-MM-DD)
+   [2] Tomorrow   (YYYY-MM-DD)
+   [3] Custom date (YYYY-MM-DD)
+   ```
+
+   **Step 3 — Country code** (if not passed as `--country` argument):
+   Enter the ISO-3166 alpha-3 code configured in your SF tenant's `cust_Country` picklist (e.g. `GBR`, `USA`, `CAN`).
 
 ---
 
@@ -217,11 +263,11 @@ Each report permanently records the SF instance (Company ID) it was run against,
 
 ## Authentication
 
-The tool supports two authentication methods. Configure via the web UI settings modal or via `.env`.
+The tool supports two authentication methods, implemented in the `auth/` module. Configure via the web UI settings modal or via `.env`.
 
 ### Basic Auth (default)
 
-Quickest to set up. Suitable for development and internal tooling.
+Quickest to set up. Suitable for development and internal tooling. Implemented in `auth/basic.py`.
 
 **Via web UI:** click the ⚙ gear icon → enter Base URL, Company ID, username, and password → Save Settings.
 
@@ -236,7 +282,12 @@ SF_PASSWORD=your_password
 
 ### OAuth2 SAML Bearer Token (recommended for enterprise)
 
-More secure — no stored passwords, tokens auto-refresh. Required by some enterprise security policies.
+Implemented in `auth/oauth2.py`. More secure — no stored passwords, tokens auto-refresh. Required by some enterprise security policies.
+
+The flow:
+1. Build a signed SAML assertion XML document using your private key
+2. POST it to `SF_TOKEN_URL` to exchange for a Bearer access token
+3. Token is cached in memory and auto-refreshed on expiry — no manual rotation needed
 
 ```env
 SF_AUTH_METHOD=oauth2
@@ -273,6 +324,18 @@ Rules are defined in `config/rules.yaml`. Each rule supports two independent con
 |------|-----------|
 | `enabled: false` | Rule is completely skipped — no check runs and no finding is recorded. |
 | `visible: false` | Rule still runs and findings are recorded in `run_manifest.json`, but they are **suppressed from HTML, Excel, and CSV output**. Use this for checks that are architecturally valid but not relevant to a particular client's SF design (e.g. a client that does not use Job Class Local). |
+
+### Rule types
+
+| Type | Description |
+|------|-------------|
+| `scalar_match` | Look up a foundation record (via `lookup_key`) and compare one of its fields (`lookup_field`) against a position field (`compare_to_position_field`). |
+| `set_membership` | Check that a position field value belongs to a set defined by a junction lookup (`junction_lookup_key`). Used for many-to-many relationships (e.g. Division → Business Unit). |
+| `not_null` | Assert that a position field is non-blank when a triggering condition is met. Supported but not yet assigned to a default check. |
+
+### `fire_when_lookup_field_not_null` (scalar_match only)
+
+When set to `true`, the rule fires whenever the looked-up field is populated on the foundation record — **even if the position field is blank**. This catches cases where the foundation record defines a value but the position omits it entirely.
 
 Example — disable a check entirely:
 
@@ -332,20 +395,6 @@ python test_schema.py
 ```
 
 Tests cover: SQLite schema structure, CHECK constraints, date normalisation, junction table population, all integrity checks (CHK-01 to CHK-09 pass + fail cases), validation result persistence, audit SQL views, and pipe-separated junction saving.
-
----
-
-## Web UI
-
-A simple frontend is available in `web_ui.py` so non-technical users can run the checker from a browser.
-
-Run the app from the repository root:
-
-```bash
-python web_ui.py
-```
-
-Open `http://127.0.0.1:5000/` in a browser, choose the country code, select the run mode (`Extract & Validate`, `Only Validate`, or `Only Extract`), and click **Run report**. The same HTML report produced by the CLI will be generated in the `output/` folder and linked on the page.
 
 ---
 
