@@ -292,6 +292,18 @@
             {% endfor %}
           </select>
         </div>
+
+        <div class="form-group">
+          <label for="as_of_date">Run date (as-of)</label>
+          <input
+            id="as_of_date"
+            name="as_of_date"
+            type="date"
+            class="input-text"
+            value="{{ form.as_of_date }}"
+            required
+          />
+        </div>
       </div>
 
       <button type="submit" class="btn btn-primary btn-run">&#9654; Run report</button>
@@ -637,12 +649,13 @@
 
     const country = document.getElementById('country').value;
     const mode = document.getElementById('mode').value;
+    const asOfDate = document.getElementById('as_of_date').value;
     const submitButton = runForm.querySelector('button[type=submit]');
     submitButton.disabled = true;
     setClientMessage('Run started. Monitoring progress...', 'success');
 
     try {
-      const payload = { country, mode };
+      const payload = { country, mode, as_of_date: asOfDate };
       const response = await fetchJson('/run-report', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

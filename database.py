@@ -16,7 +16,7 @@ in fetchers.py before saving).
 import os
 import re as _re
 import sqlite3
-from datetime import datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional
 
 DB_DIR = "data"
@@ -58,10 +58,15 @@ def normalise_date(raw: str) -> str:
                 ms_str = inner[:i]
                 break
         try:
-            ts = int(ms_str) / 1000
-            return datetime.fromtimestamp(ts, tz=timezone.utc).strftime("%Y-%m-%d")
-        except (ValueError, OSError, OverflowError):
-            return raw
+            ms = int(ms_str)
+            # Avoid platform-dependent fromtimestamp() failures for negative/large epochs.
+            d = date(1970, 1, 1) + timedelta(days=(ms // 86_400_000))
+            return d.strftime("%Y-%m-%d")
+        except (ValueError, OverflowError):
+            try:
+                return date.min.strftime("%Y-%m-%d") if int(ms_str) < 0 else date.max.strftime("%Y-%m-%d")
+            except ValueError:
+                return raw
     # Already ISO — truncate to date part
     if len(s) >= 10 and s[4] == "-" and s[7] == "-":
         return s[:10]

@@ -14,7 +14,8 @@ import openpyxl
 from openpyxl.styles import Font, PatternFill, Alignment
 from openpyxl.utils import get_column_letter
 
-OUTPUT_DIR = "output"
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+OUTPUT_DIR = os.path.join(BASE_DIR, "output")
 VERSION = "1.0.0"
 GITHUB_URL = "github.com/sahirvhora/sf-position-integrity-checker"
 
@@ -141,6 +142,7 @@ def write_excel(
     country: str = "CA",
     tenant_url: str = "",
     instance_id: str = "",
+  as_of_date: datetime.date | None = None,
 ) -> str:
     _ensure_output_dir()
     path = os.path.join(OUTPUT_DIR, f"position_integrity_{country}_{_datestamp()}.xlsx")
@@ -151,7 +153,15 @@ def write_excel(
     # ---- Summary sheet (first tab) ----------------------------------------
     ws_sum = wb.active
     ws_sum.title = "Summary"
-    _build_summary_sheet(ws_sum, normalised, total_positions, country, tenant_url, instance_id)
+    _build_summary_sheet(
+      ws_sum,
+      normalised,
+      total_positions,
+      country,
+      tenant_url,
+      instance_id,
+      as_of_date=as_of_date,
+    )
 
     # ---- Issues sheet -------------------------------------------------------
     ws = wb.create_sheet(title="Issues")
@@ -199,8 +209,9 @@ def _build_summary_sheet(
     country: str,
     tenant_url: str = "",
     instance_id: str = "",
+    as_of_date: datetime.date | None = None,
 ) -> None:
-    run_date = datetime.date.today().isoformat()
+    run_date = (as_of_date or datetime.date.today()).isoformat()
     critical_count = sum(1 for i in issues if i.get("Severity") == "CRITICAL")
     high_count     = sum(1 for i in issues if i.get("Severity") == "HIGH")
     check_counts   = Counter(i.get("Check ID") for i in issues)
@@ -235,7 +246,7 @@ def _build_summary_sheet(
     instance = _instance_name(tenant_url, instance_id)
     label_value(5,  "SF Instance:",         instance if instance else "—")
     label_value(6,  "Country:",             country)
-    label_value(7,  "Run Date:",            run_date)
+    label_value(7,  "As-of Date:",          run_date)
     label_value(8,  "Positions Checked:",   total_positions)
     label_value(9,  "Total Issues Found:",  len(issues))
     label_value(10, "CRITICAL Issues:",     critical_count)
@@ -275,10 +286,11 @@ def write_html(
     country: str = "CA",
     tenant_url: str = "",
     instance_id: str = "",
+    as_of_date: datetime.date | None = None,
 ) -> str:
     _ensure_output_dir()
     path = os.path.join(OUTPUT_DIR, f"position_integrity_{country}_{_datestamp()}.html")
-    html = _build_html(issues, total_positions, country, tenant_url, instance_id)
+    html = _build_html(issues, total_positions, country, tenant_url, instance_id, as_of_date=as_of_date)
     with open(path, "w", encoding="utf-8") as f:
         f.write(html)
     print(f"  HTML -> {path}")
@@ -291,8 +303,10 @@ def _build_html(
     country: str,
     tenant_url: str = "",
     instance_id: str = "",
+    as_of_date: datetime.date | None = None,
 ) -> str:
     run_dt   = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    run_date = (as_of_date or datetime.date.today()).isoformat()
     instance = _instance_name(tenant_url, instance_id)
     critical_count = sum(1 for i in issues if i.get("Severity") == "CRITICAL")
     high_count     = sum(1 for i in issues if i.get("Severity") == "HIGH")
@@ -300,6 +314,8 @@ def _build_html(
     severities = sorted({i.get("Severity", "") for i in issues} - {""})
     check_ids  = sorted({i.get("Check ID", "") for i in issues} - {""})
     categories = sorted({i.get("Check Category", "") for i in issues} - {""})
+    employee_statuses = sorted({i.get("Employee Status", "") for i in issues} - {""})
+    has_vacant_rows = any(not str(i.get("Employee Status", "")).strip() for i in issues)
 
     def opts(values):
         return "\n".join(f'<option value="{v}">{v}</option>' for v in values)
@@ -318,6 +334,28 @@ def _build_html(
         f'<th onclick="sortTable({i})">{c} <span class="sort-icon">⇅</span></th>'
         for i, c in enumerate(COLUMNS)
     )
+
+    # Count unique impacted positions by employee status to show a quick fix scope.
+    seen_positions = set()
+    active_positions = 0
+    terminated_positions = 0
+    vacant_positions = 0
+    other_positions = 0
+    for idx, issue in enumerate(issues):
+      position_id = str(issue.get("Position ID", "")).strip() or f"__row_{idx}"
+      if position_id in seen_positions:
+        continue
+      seen_positions.add(position_id)
+
+      emp_status = str(issue.get("Employee Status", "")).strip().lower()
+      if not emp_status:
+        vacant_positions += 1
+      elif emp_status == "active":
+        active_positions += 1
+      elif emp_status == "terminated":
+        terminated_positions += 1
+      else:
+        other_positions += 1
 
     return f"""<!DOCTYPE html>
 <html lang="en">
@@ -349,6 +387,10 @@ def _build_html(
   .card.critical .num {{ color: #c0392b; }}
   .card.high .num {{ color: #d35400; }}
   .card.total .num {{ color: #1f3864; }}
+  .card.status-active .num {{ color: #1d7d3a; }}
+  .card.status-terminated .num {{ color: #8e3b46; }}
+  .card.status-vacant .num {{ color: #6b7280; }}
+  .card.status-other .num {{ color: #5b4b8a; }}
   .filters {{ padding: 0 1.5rem 1rem; display: flex; gap: 0.75rem; flex-wrap: wrap;
               align-items: flex-end; }}
   .filters label {{ font-size: 0.8rem; color: #555; display: flex; flex-direction: column;
@@ -401,7 +443,7 @@ def _build_html(
 <div class="header-bar">
   <div>
     <h1>SF Position Integrity Checker</h1>
-    <div class="sub">Country: {country} &nbsp;|&nbsp; Run: {run_dt}</div>
+    <div class="sub">Country: {country} &nbsp;|&nbsp; As-of Date: {run_date} &nbsp;|&nbsp; Generated: {run_dt}</div>
   </div>
   {f'''<div class="instance-badge"><span class="lbl">SF Instance</span><span class="val">{instance}</span></div>''' if instance else ''}
 </div>
@@ -425,6 +467,22 @@ def _build_html(
   </div>
 </div>
 
+<div class="cards">
+  <div class="card status-active">
+    <div class="num">{active_positions}</div>
+    <div class="lbl">Active Positions (in findings)</div>
+  </div>
+  <div class="card status-terminated">
+    <div class="num">{terminated_positions}</div>
+    <div class="lbl">Terminated Positions (in findings)</div>
+  </div>
+  <div class="card status-vacant">
+    <div class="num">{vacant_positions}</div>
+    <div class="lbl">Vacant Positions (in findings)</div>
+  </div>
+  {f'''<div class="card status-other"><div class="num">{other_positions}</div><div class="lbl">Other Employee Status</div></div>''' if other_positions else ''}
+</div>
+
 <div class="filters">
   <label>Severity
     <select id="f-severity" onchange="applyFilters()">
@@ -442,6 +500,13 @@ def _build_html(
     <select id="f-category" onchange="applyFilters()">
       <option value="">All</option>
       {opts(categories)}
+    </select>
+  </label>
+  <label>Employee Status
+    <select id="f-empstatus" onchange="applyFilters()">
+      <option value="">All</option>
+      {opts(employee_statuses)}
+      {"<option value=\"__vacant__\">Vacant</option>" if has_vacant_rows else ""}
     </select>
   </label>
   <label>Search
@@ -467,12 +532,13 @@ def _build_html(
   </table>
 </div>
 
-<footer>Generated by SF Position Integrity Checker v{VERSION} &nbsp;|&nbsp; {run_dt} &nbsp;|&nbsp; Country: {country}{f" &nbsp;|&nbsp; Instance: {instance}" if instance else ""}</footer>
+<footer>Generated by SF Position Integrity Checker v{VERSION} &nbsp;|&nbsp; As-of Date: {run_date} &nbsp;|&nbsp; Generated: {run_dt} &nbsp;|&nbsp; Country: {country}{f" &nbsp;|&nbsp; Instance: {instance}" if instance else ""}</footer>
 
 <script>
 const COL_SEVERITY = {COLUMNS.index("Severity")};
 const COL_CHECKID  = {COLUMNS.index("Check ID")};
 const COL_CATEGORY = {COLUMNS.index("Check Category")};
+const COL_EMPSTATUS = {COLUMNS.index("Employee Status")};
 
 const REPORT_FILENAME = "position_integrity_{country}_{run_dt[:10]}";
 
@@ -551,20 +617,23 @@ function applyFilters() {{
   const sev  = document.getElementById("f-severity").value.toLowerCase();
   const chk  = document.getElementById("f-checkid").value.toLowerCase();
   const cat  = document.getElementById("f-category").value.toLowerCase();
+  const emp  = document.getElementById("f-empstatus").value.toLowerCase();
   const srch = document.getElementById("f-search").value.toLowerCase();
   const rows = document.querySelectorAll("#table-body tr");
   rows.forEach(row => {{
     const s0 = !sev  || cellText(row, COL_SEVERITY) === sev;
     const s1 = !chk  || cellText(row, COL_CHECKID)  === chk;
     const s2 = !cat  || cellText(row, COL_CATEGORY) === cat;
-    const s3 = !srch || Array.from(row.cells).some(c =>
+    const rowEmpStatus = cellText(row, COL_EMPSTATUS);
+    const s3 = !emp || (emp === "__vacant__" ? rowEmpStatus === "" : rowEmpStatus === emp);
+    const s4 = !srch || Array.from(row.cells).some(c =>
                   c.textContent.toLowerCase().includes(srch));
-    row.classList.toggle("hidden", !(s0 && s1 && s2 && s3));
+    row.classList.toggle("hidden", !(s0 && s1 && s2 && s3 && s4));
   }});
 }}
 
 function clearFilters() {{
-  ["f-severity","f-checkid","f-category"].forEach(id =>
+  ["f-severity","f-checkid","f-category","f-empstatus"].forEach(id =>
     document.getElementById(id).value = "");
   document.getElementById("f-search").value = "";
   applyFilters();
@@ -596,6 +665,7 @@ def print_console_summary(
     issues: List[Dict[str, Any]],
     total_positions: int,
     country: str,
+  as_of_date: datetime.date | None = None,
 ) -> None:
     check_counts = Counter(i.get("Check ID") for i in issues)
     critical_n = sum(1 for i in issues if i.get("Severity") == "CRITICAL")
@@ -623,7 +693,7 @@ def print_console_summary(
     print(f"  CRITICAL          : {critical_n}")
     print(f"  HIGH              : {high_n}")
     print(f"  Country           : {country}")
-    print(f"  Run Date          : {datetime.date.today().isoformat()}")
+    print(f"  As-of Date        : {(as_of_date or datetime.date.today()).isoformat()}")
 
 
 # ---------------------------------------------------------------------------
@@ -636,6 +706,7 @@ def write_run_manifest(
     country: str,
     tenant_url: str = "",
     checks_disabled: List[str] = None,
+  as_of_date: datetime.date | None = None,
 ) -> str:
     """Write output/run_manifest.json after every validation run."""
     _ensure_output_dir()
@@ -659,6 +730,7 @@ def write_run_manifest(
         "run_timestamp":      datetime.datetime.now().isoformat(timespec="seconds"),
         "tenant_url":         _mask_tenant_url(tenant_url) if tenant_url else "",
         "country":            country,
+        "as_of_date":         (as_of_date or datetime.date.today()).isoformat(),
         "positions_checked":  total_positions,
         "total_issues":       len(issues),
         "hidden_issues_count": hidden_n,
@@ -696,12 +768,13 @@ def write_all_reports(
     country: str = "CA",
     tenant_url: str = "",
     instance_id: str = "",
+  as_of_date: datetime.date | None = None,
 ) -> None:
     print(f"\n[REPORT] Writing output files to ./{OUTPUT_DIR}/")
     visible = _visible_issues(issues)
     write_csv(visible, country)
-    write_excel(visible, total_positions, country, tenant_url=tenant_url, instance_id=instance_id)
-    write_html(visible, total_positions, country, tenant_url=tenant_url, instance_id=instance_id)
-    write_run_manifest(issues, total_positions, country, tenant_url=tenant_url)
+    write_excel(visible, total_positions, country, tenant_url=tenant_url, instance_id=instance_id, as_of_date=as_of_date)
+    write_html(visible, total_positions, country, tenant_url=tenant_url, instance_id=instance_id, as_of_date=as_of_date)
+    write_run_manifest(issues, total_positions, country, tenant_url=tenant_url, as_of_date=as_of_date)
     write_report_meta(country, instance_id)
-    print_console_summary(issues, total_positions, country)
+    print_console_summary(issues, total_positions, country, as_of_date=as_of_date)

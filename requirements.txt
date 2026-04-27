@@ -7,3 +7,4 @@ PyYAML>=6.0
 lxml>=4.9.0
 signxml>=3.2.0
 cryptography>=41.0.0
+Flask>=2.3.0

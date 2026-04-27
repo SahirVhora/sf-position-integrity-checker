@@ -159,10 +159,22 @@ def _is_active_fo(record: Dict, today: datetime.date) -> bool:
     return (start is not None) and start <= today <= end and record.get("status") == "A"
 
 
+def _is_effective_fo(record: Dict, as_of_date: datetime.date) -> bool:
+    start = _parse_sf_date(record.get("startDate"))
+    end   = _parse_sf_date(record.get("endDate")) or _DISTANT_FUTURE
+    return (start is not None) and start <= as_of_date <= end
+
+
 def _is_active_subdept(record: Dict, today: datetime.date) -> bool:
     start = _parse_sf_date(record.get("effectiveStartDate"))
     end   = _parse_sf_date(record.get("mdfSystemEffectiveEndDate")) or _DISTANT_FUTURE
     return (start is not None) and start <= today <= end and record.get("mdfSystemStatus") == "A"
+
+
+def _is_effective_subdept(record: Dict, as_of_date: datetime.date) -> bool:
+    start = _parse_sf_date(record.get("effectiveStartDate"))
+    end   = _parse_sf_date(record.get("mdfSystemEffectiveEndDate")) or _DISTANT_FUTURE
+    return (start is not None) and start <= as_of_date <= end
 
 
 
@@ -202,7 +214,11 @@ def _build_lookup(
 # Phase 1 — Fetch positions
 # ---------------------------------------------------------------------------
 
-def fetch_positions(country_code: str = "CAN", progress_callback: Optional[ProgressCallback] = None) -> List[Dict]:
+def fetch_positions(
+    country_code: str = "CAN",
+    as_of_date: Optional[datetime.date] = None,
+    progress_callback: Optional[ProgressCallback] = None,
+) -> List[Dict]:
     """Fetch all active Canada positions from SF with full pagination."""
     _emit_progress(progress_callback, {
         "phase": "positions",
@@ -223,11 +239,11 @@ def fetch_positions(country_code: str = "CAN", progress_callback: Optional[Progr
         ],
         filter_expr=f"cust_Country eq '{country_code}' and effectiveStatus eq 'A'",
     )
-    today = datetime.date.today()
+    target_date = as_of_date or datetime.date.today()
     lookup: Dict[str, Dict] = {}
     for rec in records:
         rec = _normalize_record(rec)
-        if not _is_active_position(rec, today):
+        if not _is_active_position(rec, target_date):
             continue
         code = rec.get("code")
         if not code:
@@ -240,11 +256,17 @@ def fetch_positions(country_code: str = "CAN", progress_callback: Optional[Progr
             if this > existing:
                 lookup[code] = rec
     active = list(lookup.values())
-    print(f"  -> {len(active)} active positions after effective date filtering")
+    print(
+        f"  -> {len(active)} active positions after effective date filtering "
+        f"(as-of {target_date.isoformat()})"
+    )
     _emit_progress(progress_callback, {
         "phase": "positions",
         "step": "1/9",
-        "message": f"{len(active)} active positions after effective date filtering",
+        "message": (
+            f"{len(active)} active positions after effective date filtering "
+            f"(as-of {target_date.isoformat()})"
+        ),
         "status": "done",
         "current": len(active),
         "total": len(active),
@@ -306,15 +328,16 @@ def _fetch_by_codes(
     step: str,
     codes: Set[str],
     select_fields: List[str],
-    status_filter: str,
-    is_active_fn,
+    is_effective_fn,
     progress_callback: Optional[ProgressCallback] = None,
     start_field: str = "startDate",
     expand_fields: Optional[List[str]] = None,
+    status_filter: Optional[str] = None,
+    as_of_date: Optional[datetime.date] = None,
 ) -> List[Dict]:
     """
     Fetch records for the given set of codes in batches of _CODE_BATCH_SIZE.
-    Applies effective-date filtering after fetch and returns one active record
+    Applies effective-date filtering after fetch and returns one effective record
     per externalCode.
     """
     if not codes:
@@ -331,14 +354,14 @@ def _fetch_by_codes(
 
     code_list    = sorted(codes)
     total_batches = math.ceil(len(code_list) / _CODE_BATCH_SIZE)
-    today         = datetime.date.today()
+    target_date   = as_of_date or datetime.date.today()
     all_records: List[Dict] = []
 
     for batch_num in range(1, total_batches + 1):
         start = (batch_num - 1) * _CODE_BATCH_SIZE
         batch = code_list[start: start + _CODE_BATCH_SIZE]
         code_clause  = " or ".join(f"externalCode eq '{c}'" for c in batch)
-        filter_expr  = f"({code_clause}) and {status_filter}"
+        filter_expr = f"({code_clause}) and {status_filter}" if status_filter else f"({code_clause})"
         print(
             f"\n[{step}] Fetching {entity} for {len(codes)} unique codes "
             f"(batch {batch_num}/{total_batches})..."
@@ -359,13 +382,13 @@ def _fetch_by_codes(
         )
         all_records.extend(_normalize_record(r) for r in records)
 
-    lookup = _build_lookup(all_records, today, is_active_fn, start_field)
+    lookup = _build_lookup(all_records, target_date, is_effective_fn, start_field)
     result = list(lookup.values())
-    print(f"  -> {len(result)} active {entity} record(s)")
+    print(f"  -> {len(result)} effective {entity} record(s) as-of {target_date.isoformat()}")
     _emit_progress(progress_callback, {
         "phase": entity,
         "step": step,
-        "message": f"{len(result)} active {entity} record(s) loaded.",
+        "message": f"{len(result)} effective {entity} record(s) loaded (as-of {target_date.isoformat()}).",
         "status": "done",
         "current": len(result),
         "total": len(codes),
@@ -377,13 +400,17 @@ def _fetch_by_codes(
 # Individual foundation fetchers
 # ---------------------------------------------------------------------------
 
-def fetch_fo_company(codes: Set[str], progress_callback: Optional[ProgressCallback] = None) -> List[Dict]:
+def fetch_fo_company(
+    codes: Set[str],
+    as_of_date: Optional[datetime.date] = None,
+    progress_callback: Optional[ProgressCallback] = None,
+) -> List[Dict]:
     try:
         return _fetch_by_codes(
             entity="FOCompany", step="2/9", codes=codes,
             select_fields=["externalCode", "startDate", "endDate", "status", "description", "country"],
-            status_filter="status eq 'A'",
-            is_active_fn=_is_active_fo,
+            is_effective_fn=_is_effective_fo,
+            as_of_date=as_of_date,
             progress_callback=progress_callback,
         )
     except Exception as exc:
@@ -396,14 +423,18 @@ def fetch_fo_company(codes: Set[str], progress_callback: Optional[ProgressCallba
         return []
 
 
-def fetch_fo_business_unit(codes: Set[str], progress_callback: Optional[ProgressCallback] = None) -> List[Dict]:
+def fetch_fo_business_unit(
+    codes: Set[str],
+    as_of_date: Optional[datetime.date] = None,
+    progress_callback: Optional[ProgressCallback] = None,
+) -> List[Dict]:
     try:
         return _fetch_by_codes(
             entity="FOBusinessUnit", step="3/9", codes=codes,
             select_fields=["externalCode", "startDate", "endDate", "status", "description"],
             expand_fields=["cust_legalEntity"],
-            status_filter="status eq 'A'",
-            is_active_fn=_is_active_fo,
+            is_effective_fn=_is_effective_fo,
+            as_of_date=as_of_date,
             progress_callback=progress_callback,
         )
     except Exception as exc:
@@ -416,14 +447,18 @@ def fetch_fo_business_unit(codes: Set[str], progress_callback: Optional[Progress
         return []
 
 
-def fetch_fo_division(codes: Set[str], progress_callback: Optional[ProgressCallback] = None) -> List[Dict]:
+def fetch_fo_division(
+    codes: Set[str],
+    as_of_date: Optional[datetime.date] = None,
+    progress_callback: Optional[ProgressCallback] = None,
+) -> List[Dict]:
     try:
         return _fetch_by_codes(
             entity="FODivision", step="4/9", codes=codes,
             select_fields=["externalCode", "startDate", "endDate", "status", "description"],
             expand_fields=["cust_BusinessUnit"],
-            status_filter="status eq 'A'",
-            is_active_fn=_is_active_fo,
+            is_effective_fn=_is_effective_fo,
+            as_of_date=as_of_date,
             progress_callback=progress_callback,
         )
     except Exception as exc:
@@ -436,7 +471,11 @@ def fetch_fo_division(codes: Set[str], progress_callback: Optional[ProgressCallb
         return []
 
 
-def fetch_fo_department(codes: Set[str], progress_callback: Optional[ProgressCallback] = None) -> List[Dict]:
+def fetch_fo_department(
+    codes: Set[str],
+    as_of_date: Optional[datetime.date] = None,
+    progress_callback: Optional[ProgressCallback] = None,
+) -> List[Dict]:
     # FODepartment exposes its Division link two ways depending on record origin:
     #   - Global/legacy records: "parent" plain scalar string (no expand needed)
     #   - Country-specific records: "cust_Division" navigation property ($expand)
@@ -446,8 +485,8 @@ def fetch_fo_department(codes: Set[str], progress_callback: Optional[ProgressCal
             entity="FODepartment", step="5/9", codes=codes,
             select_fields=["externalCode", "startDate", "endDate", "status", "description", "parent"],
             expand_fields=["cust_Division"],
-            status_filter="status eq 'A'",
-            is_active_fn=_is_active_fo,
+            is_effective_fn=_is_effective_fo,
+            as_of_date=as_of_date,
             progress_callback=progress_callback,
         )
         for rec in records:
@@ -466,7 +505,11 @@ def fetch_fo_department(codes: Set[str], progress_callback: Optional[ProgressCal
         return []
 
 
-def fetch_cust_sub_department(codes: Set[str], progress_callback: Optional[ProgressCallback] = None) -> List[Dict]:
+def fetch_cust_sub_department(
+    codes: Set[str],
+    as_of_date: Optional[datetime.date] = None,
+    progress_callback: Optional[ProgressCallback] = None,
+) -> List[Dict]:
     try:
         records = _fetch_by_codes(
             entity="cust_SubDepartment", step="6/9", codes=codes,
@@ -475,8 +518,8 @@ def fetch_cust_sub_department(codes: Set[str], progress_callback: Optional[Progr
                 "mdfSystemStatus", "externalName_en_US",
             ],
             expand_fields=["cust_Department"],
-            status_filter="mdfSystemStatus eq 'A'",
-            is_active_fn=_is_active_subdept,
+            is_effective_fn=_is_effective_subdept,
+            as_of_date=as_of_date,
             progress_callback=progress_callback,
             start_field="effectiveStartDate",
         )
@@ -497,7 +540,11 @@ def fetch_cust_sub_department(codes: Set[str], progress_callback: Optional[Progr
         return []
 
 
-def fetch_fo_job_code(codes: Set[str], progress_callback: Optional[ProgressCallback] = None) -> List[Dict]:
+def fetch_fo_job_code(
+    codes: Set[str],
+    as_of_date: Optional[datetime.date] = None,
+    progress_callback: Optional[ProgressCallback] = None,
+) -> List[Dict]:
     try:
         return _fetch_by_codes(
             entity="FOJobCode", step="7/9", codes=codes,
@@ -505,8 +552,8 @@ def fetch_fo_job_code(codes: Set[str], progress_callback: Optional[ProgressCallb
                 "externalCode", "startDate", "endDate", "status", "name_en_US",
                 "jobFunction", "cust_jobsubfunction", "grade", "cust_careerPath",
             ],
-            status_filter="status eq 'A'",
-            is_active_fn=_is_active_fo,
+            is_effective_fn=_is_effective_fo,
+            as_of_date=as_of_date,
             progress_callback=progress_callback,
         )
     except Exception as exc:
@@ -625,6 +672,7 @@ def _fetch_cust_job_class(
 def fetch_fo_job_class_local(
     codes: Set[str],
     country_code: str,
+    as_of_date: Optional[datetime.date] = None,
     progress_callback: Optional[ProgressCallback] = None,
 ) -> List[Dict]:
     entity = _job_class_entity(country_code)
@@ -638,8 +686,8 @@ def fetch_fo_job_class_local(
                     "externalCode", "startDate", "endDate", "status",
                     "cust_LocalJobLevel", "country",
                 ],
-                status_filter="status eq 'A'",
-                is_active_fn=_is_active_fo,
+                is_effective_fn=_is_effective_fo,
+                as_of_date=as_of_date,
                 progress_callback=progress_callback,
             )
     except Exception as exc:
@@ -652,19 +700,27 @@ def fetch_fo_job_class_local(
         return []
 
 
-def fetch_fo_job_class_local_can(codes: Set[str], progress_callback: Optional[ProgressCallback] = None) -> List[Dict]:
+def fetch_fo_job_class_local_can(
+    codes: Set[str],
+    as_of_date: Optional[datetime.date] = None,
+    progress_callback: Optional[ProgressCallback] = None,
+) -> List[Dict]:
     # Backwards-compatible alias for the default CAN entity.
-    return fetch_fo_job_class_local(codes, "CAN", progress_callback=progress_callback)
+    return fetch_fo_job_class_local(codes, "CAN", as_of_date=as_of_date, progress_callback=progress_callback)
 
 
-def fetch_fo_cost_center(codes: Set[str], progress_callback: Optional[ProgressCallback] = None) -> List[Dict]:
+def fetch_fo_cost_center(
+    codes: Set[str],
+    as_of_date: Optional[datetime.date] = None,
+    progress_callback: Optional[ProgressCallback] = None,
+) -> List[Dict]:
     try:
         return _fetch_by_codes(
             entity="FOCostCenter", step="8/9", codes=codes,
             select_fields=["externalCode", "startDate", "endDate", "status", "description"],
             expand_fields=["cust_BusinessUnit"],
-            status_filter="status eq 'A'",
-            is_active_fn=_is_active_fo,
+            is_effective_fn=_is_effective_fo,
+            as_of_date=as_of_date,
             progress_callback=progress_callback,
         )
     except Exception as exc:
@@ -677,7 +733,11 @@ def fetch_fo_cost_center(codes: Set[str], progress_callback: Optional[ProgressCa
         return []
 
 
-def fetch_fo_location(codes: Set[str], progress_callback: Optional[ProgressCallback] = None) -> List[Dict]:
+def fetch_fo_location(
+    codes: Set[str],
+    as_of_date: Optional[datetime.date] = None,
+    progress_callback: Optional[ProgressCallback] = None,
+) -> List[Dict]:
     try:
         return _fetch_by_codes(
             entity="FOLocation", step="9/9", codes=codes,
@@ -685,8 +745,8 @@ def fetch_fo_location(codes: Set[str], progress_callback: Optional[ProgressCallb
                 "externalCode", "startDate", "endDate", "status",
                 "description",
             ],
-            status_filter="status eq 'A'",
-            is_active_fn=_is_active_fo,
+            is_effective_fn=_is_effective_fo,
+            as_of_date=as_of_date,
             progress_callback=progress_callback,
         )
     except Exception as exc:
@@ -1035,7 +1095,11 @@ def fetch_empjob_for_positions(
 # Full extract orchestration
 # ---------------------------------------------------------------------------
 
-def run_full_extract(country_code: str, progress_callback: Optional[ProgressCallback] = None) -> Dict[str, int]:
+def run_full_extract(
+    country_code: str,
+    as_of_date: Optional[datetime.date] = None,
+    progress_callback: Optional[ProgressCallback] = None,
+) -> Dict[str, int]:
     """
     Two-phase extract:
       1. Fetch all active positions for country_code.
@@ -1061,10 +1125,12 @@ def run_full_extract(country_code: str, progress_callback: Optional[ProgressCall
     meta_id = save_extract_meta(country_code, 0, complete=False)
 
     # --- Phase 1: Positions ---
-    positions = fetch_positions(country_code, progress_callback=progress_callback)
+    target_date = as_of_date or datetime.date.today()
+    positions = fetch_positions(country_code, as_of_date=target_date, progress_callback=progress_callback)
     if not positions:
         print(
-            f"\n[WARN] No active positions found for country {country_code}. "
+            f"\n[WARN] No active positions found for country {country_code} "
+            f"as-of {target_date.isoformat()}. "
             "Verify cust_Country values in your SF instance."
         )
         return {"positions": 0}
@@ -1092,38 +1158,38 @@ def run_full_extract(country_code: str, progress_callback: Optional[ProgressCall
     unique_codes = collect_unique_codes(positions, progress_callback=progress_callback)
 
     # --- Phase 3: Foundation fetches ---
-    companies    = fetch_fo_company(unique_codes["company"], progress_callback=progress_callback)
+    companies    = fetch_fo_company(unique_codes["company"], as_of_date=target_date, progress_callback=progress_callback)
     if not companies and unique_codes["company"]:
         n = len(unique_codes["company"])
         print(f"[WARN] companies returned 0 records for {n} referenced codes — checks that depend on this entity will be skipped.")
 
-    bus          = fetch_fo_business_unit(unique_codes["businessUnit"], progress_callback=progress_callback)
+    bus          = fetch_fo_business_unit(unique_codes["businessUnit"], as_of_date=target_date, progress_callback=progress_callback)
     if not bus and unique_codes["businessUnit"]:
         n = len(unique_codes["businessUnit"])
         print(f"[WARN] business_units returned 0 records for {n} referenced codes — checks that depend on this entity will be skipped.")
 
-    divisions    = fetch_fo_division(unique_codes["division"], progress_callback=progress_callback)
+    divisions    = fetch_fo_division(unique_codes["division"], as_of_date=target_date, progress_callback=progress_callback)
     if not divisions and unique_codes["division"]:
         n = len(unique_codes["division"])
         print(f"[WARN] divisions returned 0 records for {n} referenced codes — checks that depend on this entity will be skipped.")
 
-    departments  = fetch_fo_department(unique_codes["department"], progress_callback=progress_callback)
+    departments  = fetch_fo_department(unique_codes["department"], as_of_date=target_date, progress_callback=progress_callback)
     if not departments and unique_codes["department"]:
         n = len(unique_codes["department"])
         print(f"[WARN] departments returned 0 records for {n} referenced codes — checks that depend on this entity will be skipped.")
 
-    subdepts     = fetch_cust_sub_department(unique_codes["cust_subDepartment"], progress_callback=progress_callback)
+    subdepts     = fetch_cust_sub_department(unique_codes["cust_subDepartment"], as_of_date=target_date, progress_callback=progress_callback)
     if not subdepts and unique_codes["cust_subDepartment"]:
         n = len(unique_codes["cust_subDepartment"])
         print(f"[WARN] sub_departments returned 0 records for {n} referenced codes — checks that depend on this entity will be skipped.")
 
-    job_codes    = fetch_fo_job_code(unique_codes["jobCode"], progress_callback=progress_callback)
+    job_codes    = fetch_fo_job_code(unique_codes["jobCode"], as_of_date=target_date, progress_callback=progress_callback)
     if not job_codes and unique_codes["jobCode"]:
         n = len(unique_codes["jobCode"])
         print(f"[WARN] job_codes returned 0 records for {n} referenced codes — checks that depend on this entity will be skipped.")
 
     # 7b: Fetch local job classification (cust_* or FOJobClassLocal*) before subfunctions
-    job_can      = fetch_fo_job_class_local(unique_codes["jobCode"], country_code, progress_callback=progress_callback)
+    job_can      = fetch_fo_job_class_local(unique_codes["jobCode"], country_code, as_of_date=target_date, progress_callback=progress_callback)
     if not job_can and unique_codes["jobCode"]:
         n = len(unique_codes["jobCode"])
         print(f"[WARN] job_class_local returned 0 records for {n} referenced codes — checks that depend on this entity will be skipped.")
@@ -1138,12 +1204,12 @@ def run_full_extract(country_code: str, progress_callback: Optional[ProgressCall
         if code in jc_subfuncs:
             jc["cust_jobsubfunction"] = jc_subfuncs[code]
 
-    cost_centers = fetch_fo_cost_center(unique_codes["costCenter"], progress_callback=progress_callback)
+    cost_centers = fetch_fo_cost_center(unique_codes["costCenter"], as_of_date=target_date, progress_callback=progress_callback)
     if not cost_centers and unique_codes["costCenter"]:
         n = len(unique_codes["costCenter"])
         print(f"[WARN] cost_centers returned 0 records for {n} referenced codes — checks that depend on this entity will be skipped.")
 
-    locations    = fetch_fo_location(unique_codes["location"], progress_callback=progress_callback)
+    locations    = fetch_fo_location(unique_codes["location"], as_of_date=target_date, progress_callback=progress_callback)
     if not locations and unique_codes["location"]:
         n = len(unique_codes["location"])
         print(f"[WARN] locations returned 0 records for {n} referenced codes — checks that depend on this entity will be skipped.")

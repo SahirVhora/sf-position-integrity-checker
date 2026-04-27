@@ -306,6 +306,139 @@ def store_credentials_to_keyring(
     print("[OK] Credentials stored in OS keyring.")
 
 
+def _env_file_path() -> str:
+    return os.path.join(os.path.dirname(__file__), ".env")
+
+
+def _write_env_var(key: str, value: str) -> None:
+    os.environ[key] = value
+    try:
+        from dotenv import set_key
+        env_path = _env_file_path()
+        if not os.path.exists(env_path):
+            open(env_path, "a", encoding="utf-8").close()
+        set_key(env_path, key, value)
+        return
+    except Exception:
+        pass
+
+    env_path = _env_file_path()
+    lines = []
+    if os.path.exists(env_path):
+        with open(env_path, "r", encoding="utf-8") as fh:
+            lines = fh.readlines()
+    found = False
+    for idx, line in enumerate(lines):
+        if line.strip().startswith(f"{key}="):
+            lines[idx] = f"{key}={value}\n"
+            found = True
+            break
+    if not found:
+        lines.append(f"{key}={value}\n")
+    with open(env_path, "w", encoding="utf-8") as fh:
+        fh.writelines(lines)
+
+
+def refresh_config() -> None:
+    global AUTH_METHOD, OAUTH2_CLIENT_ID, OAUTH2_COMPANY_ID, OAUTH2_USER_ID
+    global OAUTH2_TOKEN_URL, OAUTH2_PRIVATE_KEY_PATH
+    global SF_BASE_URL, ODATA_BASE_URL, SF_USERNAME, SF_PASSWORD, SF_INSTANCE_ID, HEADERS
+
+    AUTH_METHOD = os.getenv("SF_AUTH_METHOD", AUTH_METHOD).lower().strip()
+    if AUTH_METHOD not in ("basic", "oauth2"):
+        raise ValueError(
+            f"SF_AUTH_METHOD must be 'basic' or 'oauth2', got '{AUTH_METHOD}'"
+        )
+
+    if AUTH_METHOD == "basic":
+        _init_basic_auth()
+    else:
+        OAUTH2_CLIENT_ID       = os.getenv("SF_CLIENT_ID", "")
+        OAUTH2_COMPANY_ID      = os.getenv("SF_COMPANY_ID", "")
+        OAUTH2_USER_ID         = os.getenv("SF_USER_ID", "")
+        OAUTH2_TOKEN_URL       = os.getenv("SF_TOKEN_URL", "")
+        OAUTH2_PRIVATE_KEY_PATH = os.getenv("SF_PRIVATE_KEY_PATH", "")
+        raw_url = (
+            os.environ.get("SF_ODATA_BASE_URL")
+            or os.environ.get("SF_BASE_URL")
+            or ""
+        )
+        raw_url = raw_url.rstrip("/")
+        if raw_url.endswith("/odata/v2"):
+            raw_url = raw_url[: -len("/odata/v2")]
+        SF_BASE_URL = raw_url
+        ODATA_BASE_URL = f"{SF_BASE_URL}/odata/v2/" if SF_BASE_URL else ""
+        SF_USERNAME = os.environ.get("SF_USERNAME", "")
+        SF_PASSWORD = os.environ.get("SF_PASSWORD", "")
+        SF_INSTANCE_ID = (
+            os.environ.get("SF_COMPANY_ID")
+            or os.environ.get("SF_INSTANCE_ID")
+            or ""
+        )
+        HEADERS = {}
+
+
+def get_saved_auth_config() -> dict:
+    method = os.getenv("SF_AUTH_METHOD", AUTH_METHOD).lower().strip()
+    auth_config = {
+        "auth_method": method,
+        "base_url": os.getenv("SF_ODATA_BASE_URL")
+                    or os.getenv("SF_BASE_URL")
+                    or "",
+    }
+    if method == "basic":
+        auth_config.update({
+            "username": os.getenv("SF_USERNAME", ""),
+            "company_id": os.getenv("SF_COMPANY_ID")
+                           or os.getenv("SF_INSTANCE_ID", ""),
+            "password_saved": bool(os.getenv("SF_PASSWORD", "")),
+        })
+    else:
+        auth_config.update({
+            "client_id": os.getenv("SF_CLIENT_ID", ""),
+            "company_id": os.getenv("SF_COMPANY_ID", ""),
+            "user_id": os.getenv("SF_USER_ID", ""),
+            "token_url": os.getenv("SF_TOKEN_URL", ""),
+            "private_key_path": os.getenv("SF_PRIVATE_KEY_PATH", ""),
+            "password_saved": False,
+        })
+    return auth_config
+
+
+def set_basic_auth_config(
+    base_url: str,
+    username: str,
+    password: str,
+    company_id: str = "",
+) -> None:
+    _write_env_var("SF_AUTH_METHOD", "basic")
+    _write_env_var("SF_ODATA_BASE_URL", base_url)
+    _write_env_var("SF_USERNAME", username)
+    if company_id:
+        _write_env_var("SF_COMPANY_ID", company_id)
+    _write_env_var("SF_PASSWORD", password)
+    refresh_config()
+
+
+def set_oauth2_auth_config(
+    client_id: str,
+    company_id: str,
+    user_id: str,
+    token_url: str,
+    private_key_path: str,
+    base_url: str = "",
+) -> None:
+    _write_env_var("SF_AUTH_METHOD", "oauth2")
+    _write_env_var("SF_CLIENT_ID", client_id)
+    _write_env_var("SF_COMPANY_ID", company_id)
+    _write_env_var("SF_USER_ID", user_id)
+    _write_env_var("SF_TOKEN_URL", token_url)
+    _write_env_var("SF_PRIVATE_KEY_PATH", private_key_path)
+    if base_url:
+        _write_env_var("SF_ODATA_BASE_URL", base_url)
+    refresh_config()
+
+
 # ---------------------------------------------------------------------------
 # Pagination / retry constants
 # ---------------------------------------------------------------------------

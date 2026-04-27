@@ -50,6 +50,36 @@ def _print_header(country: str) -> None:
     print("=" * 70)
 
 
+def _parse_as_of_date(raw: str) -> datetime.date:
+    return datetime.date.fromisoformat(raw.strip())
+
+
+def _pick_as_of_date() -> datetime.date:
+    today = datetime.date.today()
+    tomorrow = today + datetime.timedelta(days=1)
+
+    print("\nSelect run date (as-of date):")
+    print(f"  [1] Today      ({today.isoformat()})")
+    print(f"  [2] Tomorrow   ({tomorrow.isoformat()})")
+    print("  [3] Custom date (YYYY-MM-DD)")
+    print()
+
+    while True:
+        raw = input("Enter choice [1/2/3]: ").strip()
+        if raw == "1":
+            return today
+        if raw == "2":
+            return tomorrow
+        if raw == "3":
+            custom_raw = input("Enter custom date (YYYY-MM-DD): ").strip()
+            try:
+                return _parse_as_of_date(custom_raw)
+            except ValueError:
+                print("  Invalid date format. Use YYYY-MM-DD.")
+                continue
+        print("  Please enter 1, 2, or 3.")
+
+
 def _pick_mode() -> int:
     print("\nSelect run mode:")
     print("  [1] Extract & Validate  — Fetch from SF, save to DB, then validate")
@@ -67,7 +97,7 @@ def _pick_mode() -> int:
 # Validate + report (shared between mode 1 and mode 2)
 # ---------------------------------------------------------------------------
 
-def _do_validate(country: str) -> None:
+def _do_validate(country: str, as_of_date: datetime.date | None = None) -> None:
     """Load positions + lookups from DB, run validation, write all reports."""
     import config
     from database import load_table, get_latest_extract_meta, save_validation_results
@@ -90,8 +120,12 @@ def _do_validate(country: str) -> None:
     positions = load_table("positions")
     lookups   = build_lookups_from_db()
 
-    print(f"[INFO] {len(positions)} positions loaded. Running validation (CHK-01 to CHK-09)...")
-    issues = validate_positions(positions, lookups)
+    target_date = as_of_date or datetime.date.today()
+    print(
+        f"[INFO] {len(positions)} positions loaded. "
+        f"Running validation (as-of {target_date.isoformat()})..."
+    )
+    issues = validate_positions(positions, lookups, as_of_date=target_date)
     print(f"[INFO] Validation complete. {len(issues)} issue(s) found.")
 
     from datetime import datetime as dt
@@ -104,6 +138,7 @@ def _do_validate(country: str) -> None:
         country=country,
         tenant_url=config.ODATA_BASE_URL,
         instance_id=config.SF_INSTANCE_ID,
+        as_of_date=target_date,
     )
     print("\n[DONE] All reports written. Check the ./output/ directory.\n")
 
@@ -118,6 +153,8 @@ def run() -> None:
     country = input("Enter country code (e.g., CAN, USA, IND, NLD): ").strip().upper()
     database.set_country(country)
     _print_header(country)
+    as_of_date = _pick_as_of_date()
+    print(f"  As-of Date     : {as_of_date.isoformat()}")
     mode = _pick_mode()
 
     # ------------------------------------------------------------------
@@ -125,24 +162,24 @@ def run() -> None:
     # ------------------------------------------------------------------
     if mode == 1:
         from fetchers import run_full_extract
-        summary = run_full_extract(country)
+        summary = run_full_extract(country, as_of_date=as_of_date)
         if not summary.get("positions"):
             sys.exit(0)
         print(f"\n[INFO] Extract complete ({summary['positions']} positions). Starting validation...")
-        _do_validate(country)
+        _do_validate(country, as_of_date=as_of_date)
 
     # ------------------------------------------------------------------
     # Mode 2 — Only Validate
     # ------------------------------------------------------------------
     elif mode == 2:
-        _do_validate(country)
+        _do_validate(country, as_of_date=as_of_date)
 
     # ------------------------------------------------------------------
     # Mode 3 — Only Extract
     # ------------------------------------------------------------------
     elif mode == 3:
         from fetchers import run_full_extract
-        summary = run_full_extract(country)
+        summary = run_full_extract(country, as_of_date=as_of_date)
         if not summary.get("positions"):
             sys.exit(0)
         print("\n[EXTRACT SUMMARY]")

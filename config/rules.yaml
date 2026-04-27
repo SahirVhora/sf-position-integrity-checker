@@ -128,3 +128,92 @@ rules:
     lookup_key: job_codes
     lookup_field: cust_careerPath
     compare_to_position_field: cust_CareerPath
+
+  - id: CHK-10
+    enabled: true
+    visible: true
+    description: "Legal Entity must be active on selected run date"
+    category: "Foundation Status"
+    severity: CRITICAL
+    type: foundation_active
+    position_field: company
+    lookup_key: companies
+    object_label: "Legal Entity"
+
+  - id: CHK-11
+    enabled: true
+    visible: true
+    description: "Business Unit must be active on selected run date"
+    category: "Foundation Status"
+    severity: CRITICAL
+    type: foundation_active
+    position_field: businessUnit
+    lookup_key: business_units
+    object_label: "Business Unit"
+
+  - id: CHK-12
+    enabled: true
+    visible: true
+    description: "Division must be active on selected run date"
+    category: "Foundation Status"
+    severity: CRITICAL
+    type: foundation_active
+    position_field: division
+    lookup_key: divisions
+    object_label: "Division"
+
+  - id: CHK-13
+    enabled: true
+    visible: true
+    description: "Department must be active on selected run date"
+    category: "Foundation Status"
+    severity: CRITICAL
+    type: foundation_active
+    position_field: department
+    lookup_key: departments
+    object_label: "Department"
+
+  - id: CHK-14
+    enabled: true
+    visible: true
+    description: "Sub Department must be active on selected run date"
+    category: "Foundation Status"
+    severity: CRITICAL
+    type: foundation_active
+    position_field: cust_subDepartment
+    lookup_key: sub_departments
+    object_label: "Sub Department"
+
+  - id: CHK-15
+    enabled: true
+    visible: true
+    description: "Job Code must be active on selected run date"
+    category: "Foundation Status"
+    severity: CRITICAL
+    type: foundation_active
+    position_field: jobCode
+    lookup_key: job_codes
+    object_label: "Job Code"
+    fail_when_missing: false
+
+  - id: CHK-16
+    enabled: true
+    visible: true
+    description: "Cost Centre must be active on selected run date"
+    category: "Foundation Status"
+    severity: CRITICAL
+    type: foundation_active
+    position_field: costCenter
+    lookup_key: cost_centers
+    object_label: "Cost Centre"
+
+  - id: CHK-17
+    enabled: true
+    visible: true
+    description: "Location must be active on selected run date"
+    category: "Foundation Status"
+    severity: CRITICAL
+    type: foundation_active
+    position_field: location
+    lookup_key: locations
+    object_label: "Location"

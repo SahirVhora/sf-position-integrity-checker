@@ -12,7 +12,9 @@ and not fetched), that specific alignment check is silently skipped — no
 false existence errors are raised.
 """
 
+import datetime
 import os
+import re
 from typing import Any, Dict, List, Optional, Set
 
 import yaml
@@ -66,6 +68,46 @@ def _val(record: Dict[str, Any], field: str) -> Optional[str]:
 def _set_display(codes: Set[str]) -> str:
     """Format a set of codes as a pipe-separated string for error messages."""
     return "|".join(sorted(codes)) if codes else "(none)"
+
+
+def _parse_date(raw: Any) -> Optional[datetime.date]:
+    """Parse SF-like date strings to date (YYYY-MM-DD, ISO datetime, /Date(...)/)."""
+    if raw is None:
+        return None
+    s = str(raw).strip()
+    if not s:
+        return None
+
+    if s.startswith("/Date("):
+        inner = s[6:].split(")")[0]
+        m = re.match(r"^-?\d+", inner)
+        if not m:
+            return None
+        try:
+            ms = int(m.group(0))
+            # Use epoch-day arithmetic to avoid Windows timestamp range issues.
+            return datetime.date(1970, 1, 1) + datetime.timedelta(days=(ms // 86_400_000))
+        except (ValueError, OverflowError):
+            try:
+                return datetime.date.min if int(m.group(0)) < 0 else datetime.date.max
+            except ValueError:
+                return None
+
+    if len(s) >= 10 and s[4] == "-" and s[7] == "-":
+        try:
+            return datetime.date.fromisoformat(s[:10])
+        except ValueError:
+            return None
+
+    return None
+
+
+def _is_active_on_date(record: Dict[str, Any], as_of_date: datetime.date) -> bool:
+    """Return True when record is effective and has active status on as_of_date."""
+    start = _parse_date(record.get("startDate"))
+    end = _parse_date(record.get("endDate")) or datetime.date(9999, 12, 31)
+    status = (_val(record, "status") or "").upper()
+    return (start is not None) and (start <= as_of_date <= end) and status == "A"
 
 
 def _issue(pos: Dict[str, Any], check_id: str, description: str) -> Dict[str, Any]:
@@ -165,6 +207,43 @@ def _run_set_membership(
     return None
 
 
+def _run_foundation_active(
+    pos: Dict[str, Any],
+    rule: Dict[str, Any],
+    lookups: Dict[str, Any],
+    as_of_date: datetime.date,
+) -> Optional[Dict[str, Any]]:
+    """Ensure the referenced foundation record is active on as_of_date."""
+    position_field = rule["position_field"]
+    code = _val(pos, position_field)
+    if not code:
+        return None
+
+    lookup_dict: Dict[str, Dict[str, Any]] = lookups.get(rule["lookup_key"], {})
+    rec = lookup_dict.get(code)
+
+    if rec is None:
+        if not rule.get("fail_when_missing", True):
+            return None
+        desc = (
+            f"{rule.get('object_label', position_field)} '{code}' has no effective foundation "
+            f"record on {as_of_date.isoformat()}"
+        )
+        return _issue(pos, rule["id"], desc)
+
+    if _is_active_on_date(rec, as_of_date):
+        return None
+
+    status = _val(rec, "status") or "(blank)"
+    start = _val(rec, "startDate") or "(blank)"
+    end = _val(rec, "endDate") or "(open)"
+    desc = (
+        f"{rule.get('object_label', position_field)} '{code}' is not active on "
+        f"{as_of_date.isoformat()} (status={status}, startDate={start}, endDate={end})"
+    )
+    return _issue(pos, rule["id"], desc)
+
+
 # ---------------------------------------------------------------------------
 # Main validation entry point
 # ---------------------------------------------------------------------------
@@ -172,6 +251,7 @@ def _run_set_membership(
 def validate_positions(
     positions: List[Dict[str, Any]],
     lookups: Dict[str, Any],
+    as_of_date: Optional[datetime.date] = None,
 ) -> List[Dict[str, Any]]:
     """
     Run all enabled rules from config/rules.yaml against every position.
@@ -181,6 +261,7 @@ def validate_positions(
     Rules with enabled: false are completely skipped.
     """
     issues: List[Dict[str, Any]] = []
+    target_date = as_of_date or datetime.date.today()
 
     # Pre-enrich each position with the current employee assignment so that
     # _issue() can include Employee ID and Employee Status in every issue row.
@@ -200,6 +281,8 @@ def validate_positions(
                 result = _run_scalar_match(pos, rule, lookups)
             elif rule_type == "set_membership":
                 result = _run_set_membership(pos, rule, lookups)
+            elif rule_type == "foundation_active":
+                result = _run_foundation_active(pos, rule, lookups, target_date)
             # not_null and future types: extend here
 
             if result is not None:

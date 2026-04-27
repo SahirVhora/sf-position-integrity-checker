@@ -10,7 +10,7 @@ import re
 import threading
 import traceback
 import uuid
-from datetime import datetime
+from datetime import date, datetime
 
 from flask import Flask, jsonify, render_template, request, send_from_directory, url_for
 
@@ -142,7 +142,13 @@ def _saved_auth_config() -> dict:
         }
 
 
-def _new_run(country: str, mode: str) -> str:
+def _parse_as_of_date(raw: str | None) -> date:
+    if raw:
+        return date.fromisoformat(raw.strip())
+    return date.today()
+
+
+def _new_run(country: str, mode: str, as_of_date: str) -> str:
     run_id = uuid.uuid4().hex
     with RUNS_LOCK:
         RUNS[run_id] = {
@@ -157,6 +163,7 @@ def _new_run(country: str, mode: str) -> str:
             "error": None,
             "country": country,
             "mode": mode,
+            "as_of_date": as_of_date,
         }
     return run_id
 
@@ -196,35 +203,37 @@ def _fail_run(run_id: str, error_message: str) -> None:
         run["message"] = error_message
 
 
-def _run_report_thread(run_id: str, country: str, mode: str) -> None:
+def _run_report_thread(run_id: str, country: str, mode: str, as_of_date_str: str) -> None:
     try:
         database.set_country(country)
+        as_of_date = _parse_as_of_date(as_of_date_str)
 
         if mode == "validate_only":
             _push_progress_event(run_id, {
                 "phase": "validate",
                 "step": "validate",
-                "message": "Running validation on cached data...",
+                "message": f"Running validation on cached data (as-of {as_of_date.isoformat()})...",
                 "status": "running",
                 "current": 0,
                 "total": None,
             })
-            _do_validate(country)
+            _do_validate(country, as_of_date=as_of_date)
             _finalize_run(
                 run_id,
-                f"Validate only complete for {country}. The HTML report has been written to the output folder.",
+                f"Validate only complete for {country} (as-of {as_of_date.isoformat()}). The HTML report has been written to the output folder.",
             )
             return
 
         summary = run_full_extract(
             country,
+            as_of_date=as_of_date,
             progress_callback=lambda event: _push_progress_event(run_id, event),
         )
 
         if summary.get("positions", 0) == 0:
             _finalize_run(
                 run_id,
-                f"No active positions were found for {country}. Please verify your cust_Country values and try again.",
+                f"No active positions were found for {country} as-of {as_of_date.isoformat()}. Please verify your cust_Country values and try again.",
                 summary=summary,
             )
             return
@@ -233,19 +242,19 @@ def _run_report_thread(run_id: str, country: str, mode: str) -> None:
             _push_progress_event(run_id, {
                 "phase": "validate",
                 "step": "validate",
-                "message": "Running validation on the fresh extract...",
+                "message": f"Running validation on the fresh extract (as-of {as_of_date.isoformat()})...",
                 "status": "running",
                 "current": 0,
                 "total": None,
             })
-            _do_validate(country)
+            _do_validate(country, as_of_date=as_of_date)
             status = (
-                f"Extract & Validate complete for {country}. "
+                f"Extract & Validate complete for {country} (as-of {as_of_date.isoformat()}). "
                 "The HTML report has been written to the output folder."
             )
         else:
             status = (
-                f"Extract only complete for {country}. "
+                f"Extract only complete for {country} (as-of {as_of_date.isoformat()}). "
                 "The position and foundation data have been saved to the local database."
             )
 
@@ -264,14 +273,23 @@ def run_report():
 
     country = str(payload.get("country", "")).strip().upper()
     mode = str(payload.get("mode", "extract_validate"))
+    as_of_date_raw = str(payload.get("as_of_date", "")).strip()
 
     if not country:
         return jsonify({"error": "Country code is required."}), 400
     if mode not in {value for value, _ in MODES}:
         return jsonify({"error": "Unsupported run mode."}), 400
+    try:
+        as_of_date = _parse_as_of_date(as_of_date_raw)
+    except ValueError:
+        return jsonify({"error": "Invalid as-of date. Use YYYY-MM-DD."}), 400
 
-    run_id = _new_run(country, mode)
-    thread = threading.Thread(target=_run_report_thread, args=(run_id, country, mode), daemon=True)
+    run_id = _new_run(country, mode, as_of_date.isoformat())
+    thread = threading.Thread(
+        target=_run_report_thread,
+        args=(run_id, country, mode, as_of_date.isoformat()),
+        daemon=True,
+    )
     thread.start()
     return jsonify({"run_id": run_id})
 
@@ -523,53 +541,58 @@ def index():
     form = {
         "country": "CAN",
         "mode": "extract_validate",
+        "as_of_date": date.today().isoformat(),
     }
 
     fetch_details = None
     if request.method == "POST":
         form["country"] = request.form.get("country", "").strip().upper()
         form["mode"] = request.form.get("mode", "extract_validate")
+        form["as_of_date"] = request.form.get("as_of_date", date.today().isoformat()).strip()
 
         if not form["country"]:
             error = "Please choose or enter a country code."
         else:
             try:
+                as_of_date = _parse_as_of_date(form["as_of_date"])
                 database.set_country(form["country"])
                 if form["mode"] == "extract_validate":
-                    summary = run_full_extract(form["country"])
+                    summary = run_full_extract(form["country"], as_of_date=as_of_date)
                     if summary.get("positions", 0) == 0:
                         status = (
-                            f"No active positions were found for {form['country']}. "
+                            f"No active positions were found for {form['country']} as-of {as_of_date.isoformat()}. "
                             "Please verify your cust_Country values and try again."
                         )
                     else:
                         fetch_details = _summary_items(summary, form["country"])
-                        _do_validate(form["country"])
+                        _do_validate(form["country"], as_of_date=as_of_date)
                         status = (
-                            f"Extract & Validate complete for {form['country']}. "
+                            f"Extract & Validate complete for {form['country']} (as-of {as_of_date.isoformat()}). "
                             "The HTML report has been written to the output folder."
                         )
                 elif form["mode"] == "validate_only":
-                    _do_validate(form["country"])
+                    _do_validate(form["country"], as_of_date=as_of_date)
                     status = (
-                        f"Validate only complete for {form['country']}. "
+                        f"Validate only complete for {form['country']} (as-of {as_of_date.isoformat()}). "
                         "The HTML report has been written to the output folder."
                     )
                 elif form["mode"] == "extract_only":
-                    summary = run_full_extract(form["country"])
+                    summary = run_full_extract(form["country"], as_of_date=as_of_date)
                     if summary.get("positions", 0) == 0:
                         status = (
-                            f"No active positions were found for {form['country']}. "
+                            f"No active positions were found for {form['country']} as-of {as_of_date.isoformat()}. "
                             "Please verify your cust_Country values and try again."
                         )
                     else:
                         fetch_details = _summary_items(summary, form["country"])
                         status = (
-                            f"Extract only complete for {form['country']}. "
+                            f"Extract only complete for {form['country']} (as-of {as_of_date.isoformat()}). "
                             "The position and foundation data have been saved to the local database."
                         )
                 else:
                     error = "Unsupported run mode selected."
+            except ValueError:
+                error = "Invalid as-of date. Use YYYY-MM-DD."
             except SystemExit as exc:
                 error = str(exc) or "A required database or validation condition was not met."
             except Exception:

@@ -166,6 +166,16 @@ On a large SF tenant with thousands of foundation objects, this means you might 
 
 ---
 
+## Web UI
+
+You can also run the browser interface from the repository root:
+```bash
+python web_ui.py
+```
+Then open `http://127.0.0.1:5000/` in your browser. The web interface lets non-technical users choose a country, select a run mode, and watch live extraction progress while the report is generated.
+
+---
+
 ## Run modes
 
 | Mode | When to use |
@@ -322,6 +332,20 @@ python test_schema.py
 ```
 
 Tests cover: SQLite schema structure, CHECK constraints, date normalisation, junction table population, all integrity checks (CHK-01 to CHK-09 pass + fail cases), validation result persistence, audit SQL views, and pipe-separated junction saving.
+
+---
+
+## Web UI
+
+A simple frontend is available in `web_ui.py` so non-technical users can run the checker from a browser.
+
+Run the app from the repository root:
+
+```bash
+python web_ui.py
+```
+
+Open `http://127.0.0.1:5000/` in a browser, choose the country code, select the run mode (`Extract & Validate`, `Only Validate`, or `Only Extract`), and click **Run report**. The same HTML report produced by the CLI will be generated in the `output/` folder and linked on the page.
 
 ---
 
