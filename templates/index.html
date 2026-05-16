@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>SF Position Integrity Checker — Web UI</title>
+  <title>SF Position Integrity Checker - Web UI</title>
 <meta property="og:image" content="https://sahirvhora.github.io/sf-position-integrity-checker/preview.svg">
 <meta property="og:image:width" content="1280">
 <meta property="og:image:height" content="640">
@@ -213,7 +213,7 @@
                 <label for="password">Password</label>
                 <input id="password" name="password" type="password" class="input-text"
                        autocomplete="new-password"
-                       placeholder="{{ '(saved — leave blank to keep)' if auth_config.password_saved else '' }}"
+                       placeholder="{{ '(saved - leave blank to keep)' if auth_config.password_saved else '' }}"
                        value="" />
               </div>
             </div>
@@ -270,7 +270,7 @@
     <div class="container header-inner">
       <div>
         <h1 class="site-title">SF Position Integrity Checker</h1>
-        <p class="site-subtitle">Select a country and run the integrity check — HTML report and download files generated automatically.</p>
+        <p class="site-subtitle">Select a country and run the integrity check - HTML report and download files generated automatically.</p>
       </div>
       <button type="button" id="open-auth-settings" class="settings-btn" title="Authentication Settings" aria-label="Open authentication settings">&#9881;</button>
     </div>
@@ -285,7 +285,7 @@
           <label for="country">Country code</label>
           <select id="country" name="country" class="select" required>
             {% for code, label in countries %}
-              <option value="{{ code }}" {% if form.country == code %}selected{% endif %}>{{ code }} — {{ label }}</option>
+              <option value="{{ code }}" {% if form.country == code %}selected{% endif %}>{{ code }} - {{ label }}</option>
             {% endfor %}
           </select>
         </div>
@@ -344,10 +344,10 @@
       <div id="progress-message">Submit the form to start the extract.</div>
     </div>
     <div class="progress-grid">
-      <div class="progress-item"><strong>Phase</strong><span id="progress-phase">—</span></div>
-      <div class="progress-item"><strong>Step</strong><span id="progress-step-detail">—</span></div>
+      <div class="progress-item"><strong>Phase</strong><span id="progress-phase"> - </span></div>
+      <div class="progress-item"><strong>Step</strong><span id="progress-step-detail"> - </span></div>
       <div class="progress-item"><strong>Current</strong><span id="progress-current">0</span></div>
-      <div class="progress-item"><strong>Total</strong><span id="progress-total">—</span></div>
+      <div class="progress-item"><strong>Total</strong><span id="progress-total"> - </span></div>
     </div>
     <div class="progress-log">
       <strong>Recent events</strong>
@@ -506,11 +506,11 @@
   }
 
   function setProgressState(data) {
-    progressPhase.textContent = data.phase || '—';
+    progressPhase.textContent = data.phase || ' - ';
     progressStepLabel.textContent = data.step ? `Step ${data.step}` : 'Waiting for start...';
     progressStepDetail.textContent = data.message || 'Waiting for the run to start...';
     progressCurrent.textContent = data.current ?? 0;
-    progressTotal.textContent = data.total ?? '—';
+    progressTotal.textContent = data.total ?? ' - ';
 
     if (typeof data.current === 'number' && typeof data.total === 'number' && data.total > 0) {
       const percent = Math.min(100, Math.round((data.current / data.total) * 100));

@@ -26,7 +26,7 @@
   <!-- project name -->
   <text x="80" y="330" font-size="52" font-family="sans-serif" font-weight="bold" fill="#f0f6fc">SF Position Integrity Checker</text>
   <!-- tagline -->
-  <text x="80" y="400" font-size="24" font-family="sans-serif" fill="#8b949e">SAP SuccessFactors position validation — OData v2, 9 cross-entity checks</text>
+  <text x="80" y="400" font-size="24" font-family="sans-serif" fill="#8b949e">SAP SuccessFactors position validation - OData v2, 9 cross-entity checks</text>
   <!-- footer -->
   <text x="80" y="580" font-size="18" font-family="sans-serif" fill="#484f58">sahirvhora.github.io</text>
   <!-- bottom accent bar -->

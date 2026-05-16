@@ -1,13 +1,13 @@
 # OAuth2 Setup Guide
 
 This guide walks you through configuring OAuth2 SAML Bearer Token authentication
-for the SF Position Integrity Checker. OAuth2 is more secure than Basic Auth —
+for the SF Position Integrity Checker. OAuth2 is more secure than Basic Auth -
 no passwords are stored, tokens auto-refresh, and it is required by many enterprise
 security policies.
 
 ---
 
-## Step 1 — Generate an RSA key pair
+## Step 1 - Generate an RSA key pair
 
 Generate a 2048-bit RSA private key and extract the public key. The public key is
 uploaded to SF Admin; the private key stays on your machine and is **never committed
@@ -30,7 +30,7 @@ chmod 644 ~/.sf_keys/sf_public_key.pem
 
 ---
 
-## Step 2 — Register the OAuth2 Client in SF Admin
+## Step 2 - Register the OAuth2 Client in SF Admin
 
 1. Log in to your SAP SuccessFactors tenant as an admin.
 2. Navigate to: **Admin Center → Tools → OAuth2 Client Applications**.
@@ -40,17 +40,17 @@ chmod 644 ~/.sf_keys/sf_public_key.pem
    | Field | Value |
    |-------|-------|
    | Application Name | `SF Position Integrity Checker` (or any descriptive name) |
-   | Application URL | `https://localhost` (placeholder — not used for SAML flow) |
+   | Application URL | `https://localhost` (placeholder - not used for SAML flow) |
    | X.509 Certificate | Paste the contents of `~/.sf_keys/sf_public_key.pem` |
 
-5. Click **Register**. SF will auto-generate a **Client ID** — copy it.
+5. Click **Register**. SF will auto-generate a **Client ID** - copy it.
 
 > **Note:** The X.509 Certificate field expects the full PEM block including
 > `-----BEGIN PUBLIC KEY-----` and `-----END PUBLIC KEY-----`.
 
 ---
 
-## Step 3 — Configure your .env file
+## Step 3 - Configure your .env file
 
 Copy `.env.example` to `.env` and fill in the OAuth2 section:
 
@@ -72,7 +72,7 @@ SF_ODATA_BASE_URL=https://api4.successfactors.com/odata/v2/
 
 ---
 
-## Step 4 — Test the connection
+## Step 4 - Test the connection
 
 Run the tool and select a lightweight extract to confirm the auth flow works:
 

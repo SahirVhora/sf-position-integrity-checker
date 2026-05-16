@@ -1,5 +1,5 @@
 """
-auth/oauth2.py — OAuth2 SAML Bearer Token handler for SF Position Integrity Checker.
+auth/oauth2.py - OAuth2 SAML Bearer Token handler for SF Position Integrity Checker.
 
 Flow:
   1. Build a signed SAML assertion XML document
@@ -140,7 +140,7 @@ def _fetch_token(vars: dict) -> tuple:
     if resp.status_code != 200:
         body_snippet = resp.text[:500]
         raise RuntimeError(
-            f"OAuth2 token request failed — HTTP {resp.status_code}\n"
+            f"OAuth2 token request failed - HTTP {resp.status_code}\n"
             f"Response: {body_snippet}"
         )
 
@@ -160,7 +160,7 @@ def _fetch_token(vars: dict) -> tuple:
 def get_oauth2_headers() -> dict:
     """
     Return Authorization header dict with a valid Bearer token.
-    Handles token caching — reuses a valid token until it expires.
+    Handles token caching - reuses a valid token until it expires.
     On expiry, automatically re-fetches a new token.
     """
     global _cached_token, _token_expiry

@@ -12,20 +12,20 @@ A Python tool that validates SAP SuccessFactors **Position** object data integri
 
 ```
 sf-position-integrity-checker/
-├── main.py               # CLI entry point — interactive run-mode and date-picker menus
-├── web_ui.py             # Flask web server — browser interface with live progress
-├── api_client.py         # HTTP layer — routes requests to basic.py or oauth2.py
-├── fetchers.py           # OData fetchers — two-phase position + foundation data pull
-├── validators.py         # Rule engine — loads rules.yaml, runs CHK-01 to CHK-09
-├── reporters.py          # Output writers — HTML, Excel, CSV, run_manifest.json
-├── database.py           # SQLite helpers — schema, upserts, audit views
-├── config.py             # Credential resolution — .env, keyring, interactive prompt
-├── test_schema.py        # Offline test suite — no SF credentials needed
+├── main.py               # CLI entry point - interactive run-mode and date-picker menus
+├── web_ui.py             # Flask web server - browser interface with live progress
+├── api_client.py         # HTTP layer - routes requests to basic.py or oauth2.py
+├── fetchers.py           # OData fetchers - two-phase position + foundation data pull
+├── validators.py         # Rule engine - loads rules.yaml, runs CHK-01 to CHK-09
+├── reporters.py          # Output writers - HTML, Excel, CSV, run_manifest.json
+├── database.py           # SQLite helpers - schema, upserts, audit views
+├── config.py             # Credential resolution - .env, keyring, interactive prompt
+├── test_schema.py        # Offline test suite - no SF credentials needed
 ├── auth/
 │   ├── basic.py          # Basic Auth request handler
 │   └── oauth2.py         # OAuth2 SAML Bearer token handler (signed assertion + auto-refresh)
 ├── config/
-│   ├── rules.yaml        # Check definitions — enable/disable/hide individual rules
+│   ├── rules.yaml        # Check definitions - enable/disable/hide individual rules
 │   └── credentials.json  # Web UI credential store (git-ignored)
 ├── templates/
 │   └── index.html        # Web UI Jinja2 template
@@ -39,17 +39,17 @@ sf-position-integrity-checker/
 
 ## The Problem This Solves
 
-### After Go-Live, Foundation Data Keeps Changing — Positions Don't Self-Correct
+### After Go-Live, Foundation Data Keeps Changing - Positions Don't Self-Correct
 
 In any live SAP SuccessFactors environment, your Foundation Objects (Departments, Divisions, Business Units, Cost Centres, Job Codes) are never static. HR Ops teams move Sub Departments between Departments, Finance deactivates Cost Centres, Job Architects change grade or career path mappings.
 
-When these changes happen, **existing Position records are not automatically updated**. The result is silent data integrity drift — positions that reference stale or misaligned foundation values, invisible until a payroll run, headcount report, or audit surfaces the problem.
+When these changes happen, **existing Position records are not automatically updated**. The result is silent data integrity drift - positions that reference stale or misaligned foundation values, invisible until a payroll run, headcount report, or audit surfaces the problem.
 
 This tool solves two distinct problems:
 
 ---
 
-### 🔍 Mode 1 — Ongoing Integrity Validation
+### 🔍 Mode 1 - Ongoing Integrity Validation
 
 > *"Are my positions currently clean against today's foundation data?"*
 
@@ -63,11 +63,11 @@ Run this after any major foundation change, as part of a periodic data health ch
 
 ---
 
-### 🔄 Mode 2 — Pre-Change Impact Analysis *(Coming Soon)*
+### 🔄 Mode 2 - Pre-Change Impact Analysis *(Coming Soon)*
 
-> *"If I change this foundation object, how many positions will break — and which ones?"*
+> *"If I change this foundation object, how many positions will break - and which ones?"*
 
-Before making a foundation change, know exactly what downstream impact it will have. The tool will let you simulate a proposed change and surface every affected Position and Job Information record — giving your team a remediation list before the change is applied, not after.
+Before making a foundation change, know exactly what downstream impact it will have. The tool will let you simulate a proposed change and surface every affected Position and Job Information record - giving your team a remediation list before the change is applied, not after.
 
 **Real-world scenarios this will handle:**
 
@@ -79,7 +79,7 @@ Before making a foundation change, know exactly what downstream impact it will h
 | Job Code Career Path updated | How many positions have a mismatched Career Path after the change? |
 | Division relinked to a different Business Unit | Which positions will fail the Division → BU alignment check? |
 
-This replaces what is currently a manual process — running multiple SF reports, cross-referencing in Excel, and hoping nothing was missed — with a single command that produces a structured impact report.
+This replaces what is currently a manual process - running multiple SF reports, cross-referencing in Excel, and hoping nothing was missed - with a single command that produces a structured impact report.
 
 ---
 
@@ -97,7 +97,7 @@ This replaces what is currently a manual process — running multiple SF reports
 | CHK-08 | Job Code Grade must match Position's Global Job Level | HIGH |
 | CHK-09 | Job Code Career Path must match Position's Career Path | HIGH |
 
-Rules are defined in `config/rules.yaml`. Each rule has an `enabled` flag and a `visible` flag — see [Customising rules](#customising-rules) for details.
+Rules are defined in `config/rules.yaml`. Each rule has an `enabled` flag and a `visible` flag - see [Customising rules](#customising-rules) for details.
 
 ---
 
@@ -118,7 +118,7 @@ SF Tenant (OData v2)
         │                    → NOT the entire foundation dataset in your SF tenant
         │
         ▼
-  [Phase 3: Cache]       ──  Store everything in local SQLite — subsequent runs
+  [Phase 3: Cache]       ──  Store everything in local SQLite - subsequent runs
         │                    can re-validate without re-fetching from SF
         │
         ▼
@@ -130,25 +130,25 @@ SF Tenant (OData v2)
   [Phase 5: Reports]     ──  HTML (filterable) │ Excel workbook │ Console table │ run_manifest.json
 ```
 
-### Resilient fetching — partial results are never fatal
+### Resilient fetching - partial results are never fatal
 
-Each foundation entity is fetched independently. If an entity does not exist on a given tenant (e.g. `FOJobClassLocalGBR` returning a 404, or a custom entity with zero results), the fetcher logs a `[WARN]` and returns an empty result — it does **not** halt the run. Subsequent fetchers (Cost Centres, Locations, EmpJob, etc.) always execute regardless of what any earlier fetcher returns. Checks that depend on a missing entity are silently skipped (no false-positive issues are raised), and a `[WARN]` is printed if a fetcher returns 0 records when the positions referenced at least one code for that entity.
+Each foundation entity is fetched independently. If an entity does not exist on a given tenant (e.g. `FOJobClassLocalGBR` returning a 404, or a custom entity with zero results), the fetcher logs a `[WARN]` and returns an empty result - it does **not** halt the run. Subsequent fetchers (Cost Centres, Locations, EmpJob, etc.) always execute regardless of what any earlier fetcher returns. Checks that depend on a missing entity are silently skipped (no false-positive issues are raised), and a `[WARN]` is printed if a fetcher returns 0 records when the positions referenced at least one code for that entity.
 
 ### Why the two-phase fetch matters
 
 Most SF API tools either fetch all foundation data (slow, unnecessary) or rely on pre-exported files (stale). This tool takes a smarter approach:
 
-1. **Fetch positions first** — pull every active position for your target country in one paginated sweep
-2. **Collect unique codes** — scan those positions and build a set of every unique Division code, Department code, Job Code, Cost Centre code, etc. that is actually referenced
-3. **Fetch only what you need** — request only those specific foundation records via batched OData calls
+1. **Fetch positions first** - pull every active position for your target country in one paginated sweep
+2. **Collect unique codes** - scan those positions and build a set of every unique Division code, Department code, Job Code, Cost Centre code, etc. that is actually referenced
+3. **Fetch only what you need** - request only those specific foundation records via batched OData calls
 
-On a large SF tenant with thousands of foundation objects, this means you might fetch 50 active Job Codes instead of 3,000 — because only those 50 are actually referenced by positions in your target country. The tool focuses validation on what matters to your project scope, not the entire global configuration.
+On a large SF tenant with thousands of foundation objects, this means you might fetch 50 active Job Codes instead of 3,000 - because only those 50 are actually referenced by positions in your target country. The tool focuses validation on what matters to your project scope, not the entire global configuration.
 
 ---
 
 ## Quickstart
 
-### Option A — Web UI (recommended)
+### Option A - Web UI (recommended)
 
 1. **Clone and set up**
    ```bash
@@ -165,13 +165,13 @@ On a large SF tenant with thousands of foundation objects, this means you might 
 
 3. **Open** [http://127.0.0.1:5000](http://127.0.0.1:5000) in your browser
 
-4. **Configure credentials** — click the ⚙ gear icon in the top-right corner, enter your SF OData Base URL, Company ID, username and password, then click **Save Settings**. Credentials are validated against your SF instance on save and persisted across sessions.
+4. **Configure credentials** - click the ⚙ gear icon in the top-right corner, enter your SF OData Base URL, Company ID, username and password, then click **Save Settings**. Credentials are validated against your SF instance on save and persisted across sessions.
 
-5. **Run a report** — select a country code and run mode, then click **▶ Run report**. Live progress is shown in the browser. When complete, the HTML report and Excel/CSV downloads appear in the Recent Reports section.
+5. **Run a report** - select a country code and run mode, then click **▶ Run report**. Live progress is shown in the browser. When complete, the HTML report and Excel/CSV downloads appear in the Recent Reports section.
 
 ---
 
-### Option B — CLI
+### Option B - CLI
 
 1. **Clone and set up**
    ```bash
@@ -193,21 +193,21 @@ On a large SF tenant with thousands of foundation objects, this means you might 
    ```
    The tool presents an interactive menu with three prompts:
 
-   **Step 1 — Run mode:**
+   **Step 1 - Run mode:**
    ```
-   [1] Extract & Validate  — Fetch from SF → save to DB → validate → report
-   [2] Only Validate       — Validate using existing DB data → report
-   [3] Only Extract        — Fetch from SF → save to DB (no validation)
+   [1] Extract & Validate  - Fetch from SF → save to DB → validate → report
+   [2] Only Validate       - Validate using existing DB data → report
+   [3] Only Extract        - Fetch from SF → save to DB (no validation)
    ```
 
-   **Step 2 — As-of date** (used for position effective-date filtering):
+   **Step 2 - As-of date** (used for position effective-date filtering):
    ```
    [1] Today      (YYYY-MM-DD)
    [2] Tomorrow   (YYYY-MM-DD)
    [3] Custom date (YYYY-MM-DD)
    ```
 
-   **Step 3 — Country code** (if not passed as `--country` argument):
+   **Step 3 - Country code** (if not passed as `--country` argument):
    Enter the ISO-3166 alpha-3 code configured in your SF tenant's `cust_Country` picklist (e.g. `GBR`, `USA`, `CAN`).
 
 ---
@@ -254,8 +254,8 @@ After each run, the following files are written to `./output/`:
 |--------|-------------|
 | **HTML report** | Interactive browser report with filter dropdowns (Severity, Check ID, Category), full-text search, column sort, and one-click export. |
 | **Excel workbook** | Two sheets: *Issues* (colour-coded rows by severity) and *Summary* (run statistics, SF instance, per-check breakdown). |
-| **CSV** | Flat export of all issues — suitable for further analysis or loading into another tool. |
-| **run_manifest.json** | Machine-readable JSON summary of the run — checks executed, issue counts (including `hidden_issues_count` for rules suppressed by `visible: false`), timestamp. Suitable for CI pipelines or audit trails. |
+| **CSV** | Flat export of all issues - suitable for further analysis or loading into another tool. |
+| **run_manifest.json** | Machine-readable JSON summary of the run - checks executed, issue counts (including `hidden_issues_count` for rules suppressed by `visible: false`), timestamp. Suitable for CI pipelines or audit trails. |
 
 Each report permanently records the SF instance (Company ID) it was run against, so historical reports in the web UI always show the correct instance even after switching tenants.
 
@@ -282,12 +282,12 @@ SF_PASSWORD=your_password
 
 ### OAuth2 SAML Bearer Token (recommended for enterprise)
 
-Implemented in `auth/oauth2.py`. More secure — no stored passwords, tokens auto-refresh. Required by some enterprise security policies.
+Implemented in `auth/oauth2.py`. More secure - no stored passwords, tokens auto-refresh. Required by some enterprise security policies.
 
 The flow:
 1. Build a signed SAML assertion XML document using your private key
 2. POST it to `SF_TOKEN_URL` to exchange for a Bearer access token
-3. Token is cached in memory and auto-refreshed on expiry — no manual rotation needed
+3. Token is cached in memory and auto-refreshed on expiry - no manual rotation needed
 
 ```env
 SF_AUTH_METHOD=oauth2
@@ -307,10 +307,10 @@ See [OAuth2 Setup Guide](docs/oauth2_setup.md) for step-by-step instructions.
 
 Credentials entered in the web UI are saved and reloaded automatically on server restart. The storage priority is:
 
-1. **`.env` file** — takes precedence if populated; suitable for local dev
-2. **OS keyring** — used when available (macOS Keychain, Windows Credential Manager, Linux Secret Service)
-3. **`config/credentials.json`** — file-based fallback for environments without a keyring daemon (e.g. WSL2). Excluded from git via `.gitignore`.
-4. **Interactive prompt** — CLI fallback only; offers to save for future runs
+1. **`.env` file** - takes precedence if populated; suitable for local dev
+2. **OS keyring** - used when available (macOS Keychain, Windows Credential Manager, Linux Secret Service)
+3. **`config/credentials.json`** - file-based fallback for environments without a keyring daemon (e.g. WSL2). Excluded from git via `.gitignore`.
+4. **Interactive prompt** - CLI fallback only; offers to save for future runs
 
 The web UI validates credentials against the SF instance on every save and returns a clear error if authentication fails.
 
@@ -322,7 +322,7 @@ Rules are defined in `config/rules.yaml`. Each rule supports two independent con
 
 | Flag | Behaviour |
 |------|-----------|
-| `enabled: false` | Rule is completely skipped — no check runs and no finding is recorded. |
+| `enabled: false` | Rule is completely skipped - no check runs and no finding is recorded. |
 | `visible: false` | Rule still runs and findings are recorded in `run_manifest.json`, but they are **suppressed from HTML, Excel, and CSV output**. Use this for checks that are architecturally valid but not relevant to a particular client's SF design (e.g. a client that does not use Job Class Local). |
 
 ### Rule types
@@ -335,13 +335,13 @@ Rules are defined in `config/rules.yaml`. Each rule supports two independent con
 
 ### `fire_when_lookup_field_not_null` (scalar_match only)
 
-When set to `true`, the rule fires whenever the looked-up field is populated on the foundation record — **even if the position field is blank**. This catches cases where the foundation record defines a value but the position omits it entirely.
+When set to `true`, the rule fires whenever the looked-up field is populated on the foundation record - **even if the position field is blank**. This catches cases where the foundation record defines a value but the position omits it entirely.
 
-Example — disable a check entirely:
+Example - disable a check entirely:
 
 ```yaml
   - id: CHK-08
-    enabled: false          # skip this check — no finding recorded
+    enabled: false          # skip this check - no finding recorded
     visible: true
     description: "Job Code Grade must match Position's Global Job Level"
     severity: HIGH
@@ -353,7 +353,7 @@ Example — disable a check entirely:
     fire_when_lookup_field_not_null: true
 ```
 
-Example — run a check but hide its findings from client-facing reports:
+Example - run a check but hide its findings from client-facing reports:
 
 ```yaml
   - id: CHK-05
@@ -368,7 +368,7 @@ Example — run a check but hide its findings from client-facing reports:
     compare_to_position_field: businessUnit
 ```
 
-Changes take effect immediately on the next run — no restart needed.
+Changes take effect immediately on the next run - no restart needed.
 
 ---
 
@@ -388,7 +388,7 @@ Changes take effect immediately on the next run — no restart needed.
 
 ## Running tests
 
-An offline test suite is included — no SF credentials needed:
+An offline test suite is included - no SF credentials needed:
 
 ```bash
 python test_schema.py
@@ -400,15 +400,15 @@ Tests cover: SQLite schema structure, CHECK constraints, date normalisation, jun
 
 ## Roadmap
 
-- **Mode 2: Pre-Change Impact Analysis** — simulate a proposed foundation change (e.g. deactivate a Cost Centre, move a Sub Department) and surface every affected Position and Job Info record before the change is applied
-- **Additional check types** — `not_null` rule type and custom expression checks via `rules.yaml`
-- **Multi-country parallel runs** — fan out across all active countries in a single execution
+- **Mode 2: Pre-Change Impact Analysis** - simulate a proposed foundation change (e.g. deactivate a Cost Centre, move a Sub Department) and surface every affected Position and Job Info record before the change is applied
+- **Additional check types** - `not_null` rule type and custom expression checks via `rules.yaml`
+- **Multi-country parallel runs** - fan out across all active countries in a single execution
 
 ---
 
 ## Author
 
-[Sahir Vhora](https://www.linkedin.com/in/sahir-vhora-9242439/) — SAP SuccessFactors Consultant
+[Sahir Vhora](https://www.linkedin.com/in/sahir-vhora-9242439/) - SAP SuccessFactors Consultant
 
 ---
 

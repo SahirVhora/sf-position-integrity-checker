@@ -1,5 +1,5 @@
 """
-database.py — SQLite local store for SF Position Integrity Checker.
+database.py - SQLite local store for SF Position Integrity Checker.
 
 DB file:  ./data/sf_integrity_{COUNTRY}.db  (set at runtime via set_country())
 
@@ -67,7 +67,7 @@ def normalise_date(raw: str) -> str:
                 return date.min.strftime("%Y-%m-%d") if int(ms_str) < 0 else date.max.strftime("%Y-%m-%d")
             except ValueError:
                 return raw
-    # Already ISO — truncate to date part
+    # Already ISO - truncate to date part
     if len(s) >= 10 and s[4] == "-" and s[7] == "-":
         return s[:10]
     return s
@@ -111,7 +111,7 @@ CREATE TABLE positions (
 );
 
 -- Foundation Objects (Lookup Tables)
--- cust_legalEntity removed — see fo_bu_legal_entity junction table
+-- cust_legalEntity removed - see fo_bu_legal_entity junction table
 CREATE TABLE fo_company (
     externalCode  TEXT PRIMARY KEY,
     startDate     TEXT,
@@ -121,7 +121,7 @@ CREATE TABLE fo_company (
     country       TEXT
 );
 
--- cust_legalEntity removed — see fo_bu_legal_entity junction table
+-- cust_legalEntity removed - see fo_bu_legal_entity junction table
 CREATE TABLE fo_business_unit (
     externalCode  TEXT PRIMARY KEY,
     startDate     TEXT,
@@ -130,7 +130,7 @@ CREATE TABLE fo_business_unit (
     description   TEXT
 );
 
--- cust_BusinessUnit removed — see fo_division_business_unit junction table
+-- cust_BusinessUnit removed - see fo_division_business_unit junction table
 CREATE TABLE fo_division (
     externalCode  TEXT PRIMARY KEY,
     startDate     TEXT,
@@ -182,7 +182,7 @@ CREATE TABLE fo_job_class_local_can (
     country            TEXT
 );
 
--- cust_BusinessUnit removed — see fo_cost_center_business_unit junction table
+-- cust_BusinessUnit removed - see fo_cost_center_business_unit junction table
 CREATE TABLE fo_cost_center (
     externalCode  TEXT PRIMARY KEY,
     startDate     TEXT,
@@ -224,7 +224,7 @@ CREATE TABLE fo_cost_center_business_unit (
 );
 
 -- ---------------------------------------------------------------------------
--- Validation Results — redesigned schema
+-- Validation Results - redesigned schema
 -- Snapshot columns for company/businessUnit/division/department/etc. removed:
 --   join to positions table for those values.
 -- Only position_title and effectiveStartDate kept as minimal snapshot for
@@ -258,7 +258,7 @@ CREATE TABLE emp_job (
 );
 
 -- ---------------------------------------------------------------------------
--- Audit views — SQL equivalents of CHK-01, CHK-03, CHK-04 for inspection
+-- Audit views - SQL equivalents of CHK-01, CHK-03, CHK-04 for inspection
 -- ---------------------------------------------------------------------------
 
 CREATE VIEW chk01_failures AS
@@ -303,7 +303,7 @@ WHERE p.company IS NOT NULL AND p.company != ''
   );
 """
 
-# Ordered column lists per table — used for INSERT statements.
+# Ordered column lists per table - used for INSERT statements.
 # Junction tables are handled separately via save_pipe_sep_junctions().
 _TABLE_COLS: Dict[str, List[str]] = {
     "positions": [
@@ -316,11 +316,11 @@ _TABLE_COLS: Dict[str, List[str]] = {
     "fo_company": [
         "externalCode", "startDate", "endDate", "status", "description", "country",
     ],
-    # cust_legalEntity removed — see fo_bu_legal_entity junction table
+    # cust_legalEntity removed - see fo_bu_legal_entity junction table
     "fo_business_unit": [
         "externalCode", "startDate", "endDate", "status", "description",
     ],
-    # cust_BusinessUnit removed — see fo_division_business_unit junction table
+    # cust_BusinessUnit removed - see fo_division_business_unit junction table
     "fo_division": [
         "externalCode", "startDate", "endDate", "status", "description",
     ],
@@ -341,7 +341,7 @@ _TABLE_COLS: Dict[str, List[str]] = {
         "externalCode", "startDate", "endDate", "status", "cust_LocalJobLevel",
         "country",
     ],
-    # cust_BusinessUnit removed — see fo_cost_center_business_unit junction table
+    # cust_BusinessUnit removed - see fo_cost_center_business_unit junction table
     "fo_cost_center": [
         "externalCode", "startDate", "endDate", "status", "description",
     ],
@@ -394,7 +394,7 @@ def get_connection(read_only: bool = False) -> sqlite3.Connection:
 def init_db() -> None:
     """Wipe and recreate all tables. Creates ./data/ if needed."""
     os.makedirs(DB_DIR, exist_ok=True)
-    # Connect directly (no read-only check — we're creating it)
+    # Connect directly (no read-only check - we're creating it)
     # FKs deliberately OFF during init so DROP order doesn't matter
     conn = sqlite3.connect(DB_PATH)
     cur = conn.cursor()

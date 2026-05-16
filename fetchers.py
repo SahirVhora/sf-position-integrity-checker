@@ -1,5 +1,5 @@
 """
-fetchers.py — Smart two-phase fetch strategy.
+fetchers.py - Smart two-phase fetch strategy.
 
 Phase 1 : Fetch all active Canada positions from SF.
 Phase 2 : Collect unique foundation codes referenced by those positions.
@@ -211,7 +211,7 @@ def _build_lookup(
 
 
 # ---------------------------------------------------------------------------
-# Phase 1 — Fetch positions
+# Phase 1 - Fetch positions
 # ---------------------------------------------------------------------------
 
 def fetch_positions(
@@ -275,7 +275,7 @@ def fetch_positions(
 
 
 # ---------------------------------------------------------------------------
-# Phase 2 — Collect unique codes
+# Phase 2 - Collect unique codes
 # ---------------------------------------------------------------------------
 
 def collect_unique_codes(
@@ -320,7 +320,7 @@ def collect_unique_codes(
 
 
 # ---------------------------------------------------------------------------
-# Phase 3 — Batched foundation fetches
+# Phase 3 - Batched foundation fetches
 # ---------------------------------------------------------------------------
 
 def _fetch_by_codes(
@@ -341,11 +341,11 @@ def _fetch_by_codes(
     per externalCode.
     """
     if not codes:
-        print(f"\n[{step}] {entity}: no codes referenced — skipping")
+        print(f"\n[{step}] {entity}: no codes referenced - skipping")
         _emit_progress(progress_callback, {
             "phase": entity,
             "step": step,
-            "message": f"No {entity} codes referenced — skipping.",
+            "message": f"No {entity} codes referenced - skipping.",
             "status": "skipped",
             "current": 0,
             "total": 0,
@@ -583,20 +583,20 @@ def _fetch_cust_job_class(
     Dedicated fetcher for cust_JobClassification* MDF entities (IND, NLD, SWE, etc.).
 
     The OData metadata for these entities (confirmed via SF Admin Center) shows:
-      - 'externalCode'                     Long   — internal numeric ID, NOT the job code
-      - 'JobClassification_externalCode'   String — the actual job code to filter on
-      - 'JobClassification_effectiveStartDate' DateTime — version start date
-      - 'cust_LocalJobLevel'               String — the field we care about
+      - 'externalCode'                     Long   - internal numeric ID, NOT the job code
+      - 'JobClassification_externalCode'   String - the actual job code to filter on
+      - 'JobClassification_effectiveStartDate' DateTime - version start date
+      - 'cust_LocalJobLevel'               String - the field we care about
       - No status or endDate field exists on this entity
 
     Strategy: fetch by JobClassification_externalCode, then keep the latest
     non-future-dated record per job code.
     """
     if not codes:
-        print(f"\n[7b/9] {entity}: no codes referenced — skipping")
+        print(f"\n[7b/9] {entity}: no codes referenced - skipping")
         _emit_progress(progress_callback, {
             "phase": entity, "step": "7b/9",
-            "message": f"No {entity} codes referenced — skipping.",
+            "message": f"No {entity} codes referenced - skipping.",
             "status": "skipped", "current": 0, "total": 0,
         })
         return []
@@ -649,7 +649,7 @@ def _fetch_cust_job_class(
                 lookup[jc_code] = rec
 
     # Normalise to standard field names expected by fo_job_class_local_can DB table
-    # 'externalCode' key is required — that is what save_foundation/DB table expects
+    # 'externalCode' key is required - that is what save_foundation/DB table expects
     result = [
         {
             "externalCode":       jc_code,
@@ -878,11 +878,11 @@ def fetch_jobcode_subfunctions(
                 done += 1
                 if done % 50 == 0 or done == total:
                     found = sum(1 for v in result.values() if v)
-                    print(f"  ... {done}/{total} processed — {found} sub functions found so far")
+                    print(f"  ... {done}/{total} processed - {found} sub functions found so far")
                     _emit_progress(progress_callback, {
                         "phase": "job_subfunction",
                         "step": "7c/9",
-                        "message": f"Processed {done}/{total} job codes — {found} sub functions found.",
+                        "message": f"Processed {done}/{total} job codes - {found} sub functions found.",
                         "status": "running",
                         "current": done,
                         "total": total,
@@ -910,7 +910,7 @@ def fetch_jobcode_subfunctions(
 
 
 # ---------------------------------------------------------------------------
-# EmpJob — current employee assignment per position
+# EmpJob - current employee assignment per position
 # ---------------------------------------------------------------------------
 
 def _fetch_picklist_labels(picklist_id: str) -> Dict[str, str]:
@@ -978,11 +978,11 @@ def fetch_empjob_for_positions(
     import concurrent.futures
 
     if not position_codes:
-        print("\n[EmpJob] No positions — skipping EmpJob fetch")
+        print("\n[EmpJob] No positions - skipping EmpJob fetch")
         _emit_progress(progress_callback, {
             "phase": "empjob",
             "step": "empjob",
-            "message": "No positions — skipping EmpJob fetch.",
+            "message": "No positions - skipping EmpJob fetch.",
             "status": "skipped",
             "current": 0,
             "total": 0,
@@ -1161,44 +1161,44 @@ def run_full_extract(
     companies    = fetch_fo_company(unique_codes["company"], as_of_date=target_date, progress_callback=progress_callback)
     if not companies and unique_codes["company"]:
         n = len(unique_codes["company"])
-        print(f"[WARN] companies returned 0 records for {n} referenced codes — checks that depend on this entity will be skipped.")
+        print(f"[WARN] companies returned 0 records for {n} referenced codes - checks that depend on this entity will be skipped.")
 
     bus          = fetch_fo_business_unit(unique_codes["businessUnit"], as_of_date=target_date, progress_callback=progress_callback)
     if not bus and unique_codes["businessUnit"]:
         n = len(unique_codes["businessUnit"])
-        print(f"[WARN] business_units returned 0 records for {n} referenced codes — checks that depend on this entity will be skipped.")
+        print(f"[WARN] business_units returned 0 records for {n} referenced codes - checks that depend on this entity will be skipped.")
 
     divisions    = fetch_fo_division(unique_codes["division"], as_of_date=target_date, progress_callback=progress_callback)
     if not divisions and unique_codes["division"]:
         n = len(unique_codes["division"])
-        print(f"[WARN] divisions returned 0 records for {n} referenced codes — checks that depend on this entity will be skipped.")
+        print(f"[WARN] divisions returned 0 records for {n} referenced codes - checks that depend on this entity will be skipped.")
 
     departments  = fetch_fo_department(unique_codes["department"], as_of_date=target_date, progress_callback=progress_callback)
     if not departments and unique_codes["department"]:
         n = len(unique_codes["department"])
-        print(f"[WARN] departments returned 0 records for {n} referenced codes — checks that depend on this entity will be skipped.")
+        print(f"[WARN] departments returned 0 records for {n} referenced codes - checks that depend on this entity will be skipped.")
 
     subdepts     = fetch_cust_sub_department(unique_codes["cust_subDepartment"], as_of_date=target_date, progress_callback=progress_callback)
     if not subdepts and unique_codes["cust_subDepartment"]:
         n = len(unique_codes["cust_subDepartment"])
-        print(f"[WARN] sub_departments returned 0 records for {n} referenced codes — checks that depend on this entity will be skipped.")
+        print(f"[WARN] sub_departments returned 0 records for {n} referenced codes - checks that depend on this entity will be skipped.")
 
     job_codes    = fetch_fo_job_code(unique_codes["jobCode"], as_of_date=target_date, progress_callback=progress_callback)
     if not job_codes and unique_codes["jobCode"]:
         n = len(unique_codes["jobCode"])
-        print(f"[WARN] job_codes returned 0 records for {n} referenced codes — checks that depend on this entity will be skipped.")
+        print(f"[WARN] job_codes returned 0 records for {n} referenced codes - checks that depend on this entity will be skipped.")
 
     # 7b: Fetch local job classification (cust_* or FOJobClassLocal*) before subfunctions
     job_can      = fetch_fo_job_class_local(unique_codes["jobCode"], country_code, as_of_date=target_date, progress_callback=progress_callback)
     if not job_can and unique_codes["jobCode"]:
         n = len(unique_codes["jobCode"])
-        print(f"[WARN] job_class_local returned 0 records for {n} referenced codes — checks that depend on this entity will be skipped.")
+        print(f"[WARN] job_class_local returned 0 records for {n} referenced codes - checks that depend on this entity will be skipped.")
 
     # 7c: Enrich job codes with their sub-function code via nav-prop (deferred field
     # cannot be resolved via $select alone in SF OData v2)
     jc_subfuncs  = fetch_jobcode_subfunctions(job_codes, progress_callback=progress_callback)
     if not jc_subfuncs and job_codes:
-        print(f"[WARN] job_subfunctions returned 0 records for {len(job_codes)} job codes — checks that depend on this entity will be skipped.")
+        print(f"[WARN] job_subfunctions returned 0 records for {len(job_codes)} job codes - checks that depend on this entity will be skipped.")
     for jc in job_codes:
         code = jc.get("externalCode")
         if code in jc_subfuncs:
@@ -1207,18 +1207,18 @@ def run_full_extract(
     cost_centers = fetch_fo_cost_center(unique_codes["costCenter"], as_of_date=target_date, progress_callback=progress_callback)
     if not cost_centers and unique_codes["costCenter"]:
         n = len(unique_codes["costCenter"])
-        print(f"[WARN] cost_centers returned 0 records for {n} referenced codes — checks that depend on this entity will be skipped.")
+        print(f"[WARN] cost_centers returned 0 records for {n} referenced codes - checks that depend on this entity will be skipped.")
 
     locations    = fetch_fo_location(unique_codes["location"], as_of_date=target_date, progress_callback=progress_callback)
     if not locations and unique_codes["location"]:
         n = len(unique_codes["location"])
-        print(f"[WARN] locations returned 0 records for {n} referenced codes — checks that depend on this entity will be skipped.")
+        print(f"[WARN] locations returned 0 records for {n} referenced codes - checks that depend on this entity will be skipped.")
 
     # --- EmpJob: current employee assignment per position ---
     pos_codes = [p["code"] for p in positions if p.get("code")]
     empjob_map = fetch_empjob_for_positions(pos_codes, progress_callback=progress_callback)
     if not empjob_map and pos_codes:
-        print(f"[WARN] empjob returned 0 records for {len(pos_codes)} positions — employee data will be absent from reports.")
+        print(f"[WARN] empjob returned 0 records for {len(pos_codes)} positions - employee data will be absent from reports.")
     empjob_rows = [
         {
             "position_code": pos_code,
@@ -1260,7 +1260,7 @@ def run_full_extract(
     print("  [DB] Junction tables populated.")
 
     mark_extract_complete(meta_id)
-    print("\n[DB] Extract complete — database is up to date.")
+    print("\n[DB] Extract complete - database is up to date.")
 
     return {
         "positions":      len(positions),

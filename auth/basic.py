@@ -1,5 +1,5 @@
 """
-auth/basic.py — Basic Auth header builder for SF Position Integrity Checker.
+auth/basic.py - Basic Auth header builder for SF Position Integrity Checker.
 
 Credential resolution order:
   1. .env file

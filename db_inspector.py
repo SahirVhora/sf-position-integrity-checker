@@ -1,5 +1,5 @@
 """
-db_inspector.py — Interactive SQLite inspector for sf_integrity_CA.db
+db_inspector.py - Interactive SQLite inspector for sf_integrity_CA.db
 
 Usage:
     python db_inspector.py               # interactive menu
@@ -179,7 +179,7 @@ SAMPLES = {
             ("All issues for a specific position (edit code)",
              "SELECT check_id, check_category, issue_description, severity "
              "FROM validation_results WHERE position_code = '63109362';"),
-            ("Run history — issues per extract run",
+            ("Run history - issues per extract run",
              "SELECT em.run_timestamp, em.country, em.positions_fetched, "
              "COUNT(vr.id) AS issues_found "
              "FROM extract_meta em "
@@ -281,7 +281,7 @@ def run_query(sql: str) -> None:
 
 def print_main_menu() -> None:
     print("\n" + "=" * 62)
-    print("  SF Position Integrity — DB Inspector")
+    print("  SF Position Integrity - DB Inspector")
     print("=" * 62)
     print("  Tables:")
     items = list(SAMPLES.items())
@@ -294,7 +294,7 @@ def print_main_menu() -> None:
 
 
 def print_table_menu(tname: str, info: dict) -> None:
-    print(f"\n--- {tname} — {info['desc']} ---")
+    print(f"\n--- {tname} - {info['desc']} ---")
     for i, (label, _sql) in enumerate(info["queries"], 1):
         print(f"  [{i}] {label}")
     print(f"  [C] Custom SQL on this table")

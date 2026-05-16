@@ -1,14 +1,14 @@
 """
-validators.py — Integrity checks CHK-01 to CHK-09 for positions.
+validators.py - Integrity checks CHK-01 to CHK-09 for positions.
 
 Check definitions are loaded from config/rules.yaml at import time.
 The rule engine supports three rule types:
-  scalar_match   — look up a foundation record and compare a field
-  set_membership — check membership in a junction-table set
-  not_null       — field must be non-blank (not yet used but supported)
+  scalar_match   - look up a foundation record and compare a field
+  set_membership - check membership in a junction-table set
+  not_null       - field must be non-blank (not yet used but supported)
 
 If a referenced foundation code is not in the lookup (e.g. it was inactive
-and not fetched), that specific alignment check is silently skipped — no
+and not fetched), that specific alignment check is silently skipped - no
 false existence errors are raised.
 """
 
@@ -151,7 +151,7 @@ def _run_scalar_match(
     lookup_dict: Dict = lookups.get(rule["lookup_key"], {})
     lookup_rec = lookup_dict.get(p_key_val)
     if lookup_rec is None:
-        return None  # not fetched — skip silently to avoid false positives
+        return None  # not fetched - skip silently to avoid false positives
 
     lookup_field_val = _val(lookup_rec, rule["lookup_field"])
     cmp_val = _val(pos, rule["compare_to_position_field"])
@@ -190,7 +190,7 @@ def _run_set_membership(
 
     lookup_dict: Dict = lookups.get(rule["lookup_key"], {})
     if p_key_val not in lookup_dict:
-        return None  # not fetched — skip silently
+        return None  # not fetched - skip silently
 
     junction: Dict[str, Set] = lookups.get(rule["junction_lookup_key"], {})
     allowed_set: Set = junction.get(p_key_val, set())

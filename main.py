@@ -1,13 +1,13 @@
 """
-main.py — CLI entry point for SF Position Integrity Checker.
+main.py - CLI entry point for SF Position Integrity Checker.
 
 Usage:
     python main.py --country CA
 
 Interactive run-mode menu:
-  [1] Extract & Validate  — Fetch from SF → save to DB → validate → report
-  [2] Only Validate       — Validate using existing DB data → report
-  [3] Only Extract        — Fetch from SF → save to DB (no validation)
+  [1] Extract & Validate  - Fetch from SF → save to DB → validate → report
+  [2] Only Validate       - Validate using existing DB data → report
+  [3] Only Extract        - Fetch from SF → save to DB (no validation)
 """
 
 import datetime
@@ -42,7 +42,7 @@ def _print_header(country: str) -> None:
     import config
     run_date = datetime.date.today().isoformat()
     print("=" * 70)
-    print("  SAP SuccessFactors — Position Integrity Checker")
+    print("  SAP SuccessFactors - Position Integrity Checker")
     print("=" * 70)
     print(f"  Country        : {country}")
     print(f"  Run Date       : {run_date}")
@@ -82,9 +82,9 @@ def _pick_as_of_date() -> datetime.date:
 
 def _pick_mode() -> int:
     print("\nSelect run mode:")
-    print("  [1] Extract & Validate  — Fetch from SF, save to DB, then validate")
-    print("  [2] Only Validate       — Run validation against existing DB data")
-    print("  [3] Only Extract        — Fetch from SF and save to DB (no validation)")
+    print("  [1] Extract & Validate  - Fetch from SF, save to DB, then validate")
+    print("  [2] Only Validate       - Run validation against existing DB data")
+    print("  [3] Only Extract        - Fetch from SF and save to DB (no validation)")
     print()
     while True:
         raw = input("Enter choice [1/2/3]: ").strip()
@@ -158,7 +158,7 @@ def run() -> None:
     mode = _pick_mode()
 
     # ------------------------------------------------------------------
-    # Mode 1 — Extract & Validate
+    # Mode 1 - Extract & Validate
     # ------------------------------------------------------------------
     if mode == 1:
         from fetchers import run_full_extract
@@ -169,13 +169,13 @@ def run() -> None:
         _do_validate(country, as_of_date=as_of_date)
 
     # ------------------------------------------------------------------
-    # Mode 2 — Only Validate
+    # Mode 2 - Only Validate
     # ------------------------------------------------------------------
     elif mode == 2:
         _do_validate(country, as_of_date=as_of_date)
 
     # ------------------------------------------------------------------
-    # Mode 3 — Only Extract
+    # Mode 3 - Only Extract
     # ------------------------------------------------------------------
     elif mode == 3:
         from fetchers import run_full_extract

@@ -1,5 +1,5 @@
 """
-api_client.py — OData v2 API client with pagination, retry, and error handling.
+api_client.py - OData v2 API client with pagination, retry, and error handling.
 """
 
 import time
@@ -37,12 +37,12 @@ def _get_with_retry(url: str, entity: str) -> Dict[str, Any]:
 
             if response.status_code == 401:
                 raise RuntimeError(
-                    "Authentication failed — check SF_INSTANCE_ID, SF_USERNAME "
+                    "Authentication failed - check SF_INSTANCE_ID, SF_USERNAME "
                     "and SF_PASSWORD in .env"
                 )
             if response.status_code == 403:
                 raise RuntimeError(
-                    f"Access denied on {entity} — check API user permissions"
+                    f"Access denied on {entity} - check API user permissions"
                 )
             if response.status_code >= 500:
                 print(

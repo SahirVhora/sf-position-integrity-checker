@@ -1,5 +1,5 @@
 """
-auth/__init__.py — Auth method dispatcher for SF Position Integrity Checker.
+auth/__init__.py - Auth method dispatcher for SF Position Integrity Checker.
 """
 
 from auth.basic import get_basic_auth_headers

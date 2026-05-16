@@ -1,5 +1,5 @@
 """
-web_ui.py — lightweight Flask frontend for SF Position Integrity Checker.
+web_ui.py - lightweight Flask frontend for SF Position Integrity Checker.
 
 Run this frontend from the repository root, then open http://127.0.0.1:5000/ in a browser.
 """
@@ -352,15 +352,15 @@ def auth_config():
         test_url = f"{config.ODATA_BASE_URL}FOCompany?$top=1&$format=json"
         resp = _req.get(test_url, headers=get_auth_headers(), timeout=15)
         if resp.status_code == 401:
-            return jsonify({"error": "Authentication failed — please check your username, password and Company ID."}), 401
+            return jsonify({"error": "Authentication failed - please check your username, password and Company ID."}), 401
         if resp.status_code == 403:
-            return jsonify({"error": "Access denied — credentials saved but the API user may lack permissions."}), 403
+            return jsonify({"error": "Access denied - credentials saved but the API user may lack permissions."}), 403
         if resp.status_code >= 500:
-            return jsonify({"error": f"SF server returned {resp.status_code} — credentials saved but the server may be temporarily unavailable."}), 502
+            return jsonify({"error": f"SF server returned {resp.status_code} - credentials saved but the server may be temporarily unavailable."}), 502
     except Exception as exc:
         conn_err = str(exc)
         if "Connection" in conn_err or "resolve" in conn_err.lower() or "timeout" in conn_err.lower():
-            return jsonify({"error": f"Could not reach the SF instance — check the Base URL. ({conn_err})"}), 502
+            return jsonify({"error": f"Could not reach the SF instance - check the Base URL. ({conn_err})"}), 502
 
     return jsonify({"status": "saved", "auth_method": auth_method})
 
@@ -430,7 +430,7 @@ def _read_manifest_instance(html_filename: str) -> str:
         with open(manifest_path, encoding="utf-8") as f:
             data = json.load(f)
         tenant_url = data.get("tenant_url", "")
-        # manifest stores masked URL (***masked***.sapsf.eu) — fall back to config
+        # manifest stores masked URL (***masked***.sapsf.eu) - fall back to config
         if "***masked***" in tenant_url:
             return ""
         m = re.match(r"https?://([^./]+)", tenant_url.strip())

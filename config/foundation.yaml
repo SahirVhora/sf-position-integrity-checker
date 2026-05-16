@@ -1,4 +1,4 @@
-# SF Position Integrity Checker — Foundation Object Configuration
+# SF Position Integrity Checker - Foundation Object Configuration
 # Adjust entity names and field names to match your SF instance.
 # Custom objects (cust_*) vary between implementations.
 
@@ -48,7 +48,7 @@ foundation_objects:
 
   sub_department:
     entity: cust_SubDepartment
-    # This object uses MDF-style date/status fields — mapped to standard names
+    # This object uses MDF-style date/status fields - mapped to standard names
     fields:
       externalCode: externalCode
       startDate: effectiveStartDate

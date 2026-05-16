@@ -1,8 +1,8 @@
 """
-config.py — Load credentials and configuration for SF Position Integrity Checker.
+config.py - Load credentials and configuration for SF Position Integrity Checker.
 
 Credential resolution order for Basic Auth (first source that provides all required values wins):
-  1. .env file  (existing behaviour — unaffected for current users)
+  1. .env file  (existing behaviour - unaffected for current users)
   2. OS keyring via the `keyring` library (with file-based fallback when keyring unavailable)
   3. Interactive prompt (offers to save to keyring for next time)
 
@@ -59,7 +59,7 @@ SF_BASE_URL: str = _raw_url  # e.g. https://api4.successfactors.com
 ODATA_BASE_URL: str = f"{SF_BASE_URL}/odata/v2/" if SF_BASE_URL else ""
 
 # ---------------------------------------------------------------------------
-# Basic Auth credential resolution (lazy — only needed in basic mode)
+# Basic Auth credential resolution (lazy - only needed in basic mode)
 # These module-level vars preserve backward compatibility for any code that
 # imports SF_USERNAME / SF_PASSWORD / SF_INSTANCE_ID / HEADERS directly.
 # ---------------------------------------------------------------------------
@@ -116,7 +116,7 @@ if AUTH_METHOD == "basic":
     _init_basic_auth()
 
 # ---------------------------------------------------------------------------
-# Keyring helper (public API — preserved for backward compatibility)
+# Keyring helper (public API - preserved for backward compatibility)
 # ---------------------------------------------------------------------------
 
 _KEYRING_SERVICE = "sf_position_integrity_checker"
@@ -192,7 +192,7 @@ def set_basic_auth_config(base_url: str, username: str, password: str, company_i
         _kr.set_password(_KEYRING_SERVICE, "company_id",   company_id or "")
         keyring_ok = True
     except Exception:
-        pass  # keyring unavailable — fall through to file-based storage
+        pass  # keyring unavailable - fall through to file-based storage
 
     if not keyring_ok:
         existing = _load_file_creds()

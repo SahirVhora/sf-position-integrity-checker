@@ -1,5 +1,5 @@
 """
-reporters.py — Generate Excel, CSV, HTML reports and a run manifest.
+reporters.py - Generate Excel, CSV, HTML reports and a run manifest.
 """
 
 import datetime
@@ -230,7 +230,7 @@ def _build_summary_sheet(
     # --- Row 3: original title ---
     ws.merge_cells("A3:D3")
     title_cell = ws["A3"]
-    title_cell.value = "SF Position Integrity Checker — Run Summary"
+    title_cell.value = "SF Position Integrity Checker - Run Summary"
     title_cell.font = Font(bold=True, size=14, color="FFFFFF")
     title_cell.fill = HEADER_FILL
     title_cell.alignment = Alignment(horizontal="center")
@@ -244,7 +244,7 @@ def _build_summary_sheet(
         vc.alignment = Alignment(horizontal="left")
 
     instance = _instance_name(tenant_url, instance_id)
-    label_value(5,  "SF Instance:",         instance if instance else "—")
+    label_value(5,  "SF Instance:",         instance if instance else " - ")
     label_value(6,  "Country:",             country)
     label_value(7,  "As-of Date:",          run_date)
     label_value(8,  "Positions Checked:",   total_positions)
@@ -362,7 +362,7 @@ def _build_html(
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>SF Position Integrity Report — {country} — {run_dt[:10]}</title>
+<title>SF Position Integrity Report - {country} - {run_dt[:10]}</title>
 <script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
 <style>
   *, *::before, *::after {{ box-sizing: border-box; margin: 0; padding: 0; }}
@@ -594,7 +594,7 @@ function exportExcel() {{
   const critCount = rows.filter(r => r[COL_SEVERITY] === "CRITICAL").length;
   const highCount = rows.filter(r => r[COL_SEVERITY] === "HIGH").length;
   const summaryData = [
-    ["SF Position Integrity Checker — Export Summary"],
+    ["SF Position Integrity Checker - Export Summary"],
     [],
     ["Country",        "{country}"],
     ["Report Date",   "{run_dt[:10]}"],

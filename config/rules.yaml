@@ -1,4 +1,4 @@
-# SF Position Integrity Checker — Rules Configuration
+# SF Position Integrity Checker - Rules Configuration
 # Each rule defines one alignment check run against every position.
 # You can disable rules, change severity, or add custom rules.
 #
@@ -9,13 +9,13 @@
 #                   Findings still appear in run_manifest.json.
 #
 # Rule types:
-#   scalar_match   — position field must match a field on a referenced foundation record
-#   set_membership — position field must be a member of a set from a junction lookup
-#   not_null       — position field must be non-blank when a condition is met
+#   scalar_match   - position field must match a field on a referenced foundation record
+#   set_membership - position field must be a member of a set from a junction lookup
+#   not_null       - position field must be non-blank when a condition is met
 #
 # fire_when_lookup_field_not_null (scalar_match only):
 #   When true, the rule fires whenever the looked-up field is populated on the
-#   foundation record — even if the position field is blank. This is used to
+#   foundation record - even if the position field is blank. This is used to
 #   catch cases where the foundation record defines a value but the position omits it.
 
 rules:

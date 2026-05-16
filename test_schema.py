@@ -1,5 +1,5 @@
 """
-test_schema.py — Offline test suite for the refactored SQLite schema.
+test_schema.py - Offline test suite for the refactored SQLite schema.
 
 Runs without any SF API credentials. Uses synthetic data to verify:
   1. Schema structure  (tables, indexes, views, CHECK constraints)
@@ -170,7 +170,7 @@ def test_check_constraints():
         ))
     c.close()
 
-    # severity must be in allowed values — first insert a valid extract_meta to satisfy FK
+    # severity must be in allowed values - first insert a valid extract_meta to satisfy FK
     c = _conn()
     c.execute(
         "INSERT INTO extract_meta (run_timestamp,country,positions_fetched,extract_complete) "
@@ -252,7 +252,7 @@ def _insert_synthetic_data(c: sqlite3.Connection) -> None:
         ]
     )
 
-    # Business units (no cust_legalEntity column — use junction table)
+    # Business units (no cust_legalEntity column - use junction table)
     c.executemany(
         "INSERT OR REPLACE INTO fo_business_unit (externalCode, startDate, endDate, status, description) "
         "VALUES (?,?,?,?,?)",
@@ -262,7 +262,7 @@ def _insert_synthetic_data(c: sqlite3.Connection) -> None:
         ]
     )
 
-    # Divisions (no cust_BusinessUnit column — use junction table)
+    # Divisions (no cust_BusinessUnit column - use junction table)
     c.executemany(
         "INSERT OR REPLACE INTO fo_division (externalCode, startDate, endDate, status, description) "
         "VALUES (?,?,?,?,?)",
@@ -301,7 +301,7 @@ def _insert_synthetic_data(c: sqlite3.Connection) -> None:
         ]
     )
 
-    # Cost centres (no cust_BusinessUnit column — use junction table)
+    # Cost centres (no cust_BusinessUnit column - use junction table)
     c.executemany(
         "INSERT OR REPLACE INTO fo_cost_center (externalCode, startDate, endDate, status, description) "
         "VALUES (?,?,?,?,?)",
@@ -520,7 +520,7 @@ def test_validation_results_save():
     assert_eq("check_id saved", last["check_id"], "CHK-01")
     assert_eq("severity saved", last["severity"], "CRITICAL")
     assert_eq("extract_meta_id FK set", last["extract_meta_id"], meta_id)
-    # Snapshot columns removed — these must NOT be present
+    # Snapshot columns removed - these must NOT be present
     assert_true("company NOT in validation_results row", "company" not in last)
     assert_true("businessUnit NOT in validation_results row", "businessUnit" not in last)
 
@@ -619,7 +619,7 @@ def test_save_pipe_sep_junctions():
 
 def main():
     print("=" * 60)
-    print("  SF Position Integrity Checker — Schema Test Suite")
+    print("  SF Position Integrity Checker - Schema Test Suite")
     print("=" * 60)
 
     # Initialise a fresh test database
@@ -641,7 +641,7 @@ def main():
     print("=" * 60)
 
     if _FAIL > 0:
-        print("\n[FAIL] Some tests failed — see output above.")
+        print("\n[FAIL] Some tests failed - see output above.")
         sys.exit(1)
     else:
         print("\n[PASS] All tests passed.")
