@@ -415,3 +415,19 @@ Tests cover: SQLite schema structure, CHECK constraints, date normalisation, jun
 ## License
 
 [Apache 2.0](LICENSE)
+
+## Related SAP SuccessFactors tools
+
+This project is part of a wider SAP SuccessFactors supplementary tools suite.
+
+Start with SF Compass for the full hub: https://sahirvhora.github.io/sf-compass/
+
+| Tool | Purpose |
+|---|---|
+| SF Compass | Feasibility answers, implementation guidance, and links to the full tool suite |
+| SF Release Update | Release impact tracking and testing focus |
+| SF Pay Transparency | EU Pay Transparency readiness and evidence workflow framing |
+| SF Value Navigator | Value realisation and sponsor-facing consulting framework |
+| SF Position Integrity Checker | Position hierarchy, incumbency, and EC data-quality validation |
+| SAPSF ObjectSync | Controlled foundation-object synchronisation between SF environments |
+
