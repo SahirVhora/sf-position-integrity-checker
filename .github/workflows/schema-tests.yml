@@ -1,0 +1,22 @@
+name: schema tests
+
+on:
+  push:
+    branches: [main]
+    paths: ['**.py', 'config/rules.yaml', 'templates/**', '.github/workflows/schema-tests.yml']
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: install deps
+        run: pip install pyyaml pandas openpyxl
+      - name: run schema tests
+        run: python test_schema.py

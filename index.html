@@ -9,59 +9,219 @@
   <meta property="og:description" content="Validate SAP SuccessFactors Position object alignment against foundation objects with configurable rules and clear reports.">
   <meta property="og:image" content="https://sahirvhora.github.io/sf-position-integrity-checker/preview.svg">
   <meta property="og:type" content="website">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:image" content="https://sahirvhora.github.io/sf-position-integrity-checker/preview.svg">
   <style>
-    :root { color-scheme: dark; --bg:#07111f; --panel:#0f1b2e; --panel2:#14233b; --line:#26374f; --text:#e6edf7; --muted:#9fb0c7; --blue:#38bdf8; --green:#34d399; --gold:#fbbf24; }
+    :root { color-scheme: dark; --bg:#07111f; --panel:#0f1b2e; --panel2:#14233b; --line:#26374f; --text:#e6edf7; --muted:#9fb0c7; --blue:#38bdf8; --green:#34d399; --gold:#fbbf24; --red:#fb7185; --purple:#c084fc; }
     * { box-sizing: border-box; }
     body { margin:0; font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: radial-gradient(circle at top left, #12345a 0, var(--bg) 38%); color:var(--text); line-height:1.55; }
-    .wrap { max-width:1100px; margin:0 auto; padding:48px 22px; }
-    .hero { display:grid; grid-template-columns:1.2fr .8fr; gap:28px; align-items:center; }
+    .wrap { max-width:1200px; margin:0 auto; padding:48px 22px; }
+    .hero { display:grid; grid-template-columns:1.1fr .9fr; gap:28px; align-items:center; }
     .eyebrow { color:var(--blue); text-transform:uppercase; letter-spacing:.14em; font-size:13px; font-weight:800; }
     h1 { font-size:clamp(34px, 6vw, 64px); line-height:1; margin:12px 0 16px; }
+    h2 { margin:0 0 14px; font-size:clamp(20px,3vw,28px); }
+    h3 { font-size:18px; margin:0 0 8px; }
     .lead { color:var(--muted); font-size:20px; max-width:760px; }
     .actions { display:flex; flex-wrap:wrap; gap:12px; margin-top:26px; }
     a.btn { color:var(--bg); background:var(--blue); padding:12px 16px; border-radius:10px; text-decoration:none; font-weight:800; }
     a.btn.secondary { color:var(--text); background:transparent; border:1px solid var(--line); }
-    .card, .panel { background:linear-gradient(180deg,var(--panel),#0b1627); border:1px solid var(--line); border-radius:18px; padding:20px; box-shadow:0 20px 60px rgba(0,0,0,.25); }
-    .metrics { display:grid; grid-template-columns:repeat(3,1fr); gap:12px; margin:30px 0; }
-    .metric strong { display:block; font-size:28px; color:var(--green); }
-    .grid { display:grid; grid-template-columns:repeat(3,1fr); gap:14px; margin-top:18px; }
-    h2 { margin:0 0 12px; font-size:22px; }
+    a.btn.small { font-size:13px; padding:8px 12px; }
+    .card, .panel { background:linear-gradient(180deg,var(--panel),#0b1627); border:1px solid var(--line); border-radius:18px; padding:22px; box-shadow:0 20px 60px rgba(0,0,0,.25); }
+    .section { margin-top:36px; }
+    .metrics { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin:30px 0; }
+    .metric strong { display:block; font-size:28px; }
+    .metric .green { color:var(--green); }
+    .metric .blue { color:var(--blue); }
+    .metric .gold { color:var(--gold); }
+    .metric .muted-sub { font-size:13px; color:var(--muted); margin-top:4px; display:block; }
+    .grid2 { display:grid; grid-template-columns:repeat(2,1fr); gap:14px; }
+    .grid3 { display:grid; grid-template-columns:repeat(3,1fr); gap:14px; margin-top:18px; }
     ul { padding-left:20px; color:var(--muted); }
-    .pill { display:inline-block; margin:4px 6px 0 0; padding:6px 9px; border:1px solid var(--line); border-radius:999px; color:var(--muted); font-size:13px; }
-    .note { color:var(--gold); }
-    @media (max-width:850px){ .hero,.grid,.metrics{grid-template-columns:1fr} .wrap{padding:30px 16px} }
+    li { margin-bottom:6px; }
+    .pill { display:inline-block; margin:4px 6px 0 0; padding:6px 10px; border:1px solid var(--line); border-radius:999px; color:var(--muted); font-size:13px; }
+    .badge { display:inline-block; padding:3px 8px; border-radius:6px; font-size:11px; font-weight:800; letter-spacing:.04em; }
+    .badge-critical { background:#7f1d1d33; color:var(--red); border:1px solid var(--red); }
+    .badge-high { background:#78350f33; color:var(--gold); border:1px solid var(--gold); }
+    .badge-ok { background:#064e3b33; color:var(--green); border:1px solid var(--green); }
+    table { width:100%; border-collapse:collapse; background:var(--panel2); border:1px solid var(--line); border-radius:12px; overflow:hidden; font-size:13px; }
+    th, td { padding:9px 10px; border-bottom:1px solid var(--line); text-align:left; }
+    th { color:var(--muted); font-weight:700; background:#0b1627; white-space:nowrap; }
+    tr:hover td { background:rgba(56,189,248,.04); }
+    .table-wrap { overflow-x:auto; margin-top:12px; border-radius:12px; }
+    .safe-box { border:2px solid var(--green); border-radius:14px; padding:18px; background:rgba(52,211,153,.04); }
+    .safe-box .icon { font-size:28px; }
+    .safe-box strong { color:var(--green); }
+    .flow { display:grid; gap:10px; }
+    .step { background:var(--panel2); border:1px solid var(--line); border-radius:12px; padding:12px; }
+    .step b { color:var(--blue); }
+    .checklist { list-style:none; padding:0; }
+    .checklist li { padding:6px 0; border-bottom:1px solid var(--line); color:var(--text); }
+    .checklist li::before { content:"✓ "; color:var(--green); font-weight:800; }
+    .related { display:flex; flex-wrap:wrap; gap:10px; margin-top:14px; }
+    .related a { color:var(--blue); border:1px solid var(--line); border-radius:8px; padding:8px 12px; text-decoration:none; font-size:14px; }
+    .related a:hover { border-color:var(--blue); }
+    .diagram { display:flex; gap:8px; align-items:center; flex-wrap:wrap; justify-content:center; margin:20px 0; }
+    .diagram > div { padding:10px 14px; border-radius:10px; text-align:center; font-weight:700; font-size:13px; min-width:100px; }
+    .d-source { background:var(--blue); color:#06101d; }
+    .d-dry { background:var(--gold); color:#06101d; }
+    .d-target { background:var(--green); color:#06101d; }
+    .d-arrow { color:var(--muted); font-size:18px; }
+    @media (max-width:860px){ .hero,.grid2,.grid3,.metrics{grid-template-columns:1fr} .wrap{padding:30px 16px} }
   </style>
 </head>
 <body>
   <main class="wrap">
+    <!-- ===== HERO ===== -->
     <section class="hero">
       <div>
         <div class="eyebrow">SAP SuccessFactors data quality</div>
         <h1>SF Position Integrity Checker</h1>
-        <p class="lead">Validate Position object alignment against Departments, Divisions, Business Units, Legal Entities, Cost Centres, Job Codes, grades, and career paths before issues reach payroll or reporting.</p>
+        <p class="lead">Validate Position object alignment against Departments, Divisions, Business Units, Legal Entities, Cost Centres, Job Codes, grades, and career paths - before issues reach payroll or reporting.</p>
         <div class="actions">
           <a class="btn" href="https://github.com/SahirVhora/sf-position-integrity-checker">View GitHub repo</a>
           <a class="btn secondary" href="https://github.com/SahirVhora/sf-position-integrity-checker#quick-start">Quick start</a>
-          <a class="btn secondary" href="https://github.com/SahirVhora/sf-position-integrity-checker/blob/main/docs/oauth2_setup.md">OAuth2 setup</a>
         </div>
       </div>
       <aside class="card">
-        <h2>What it checks</h2>
-        <span class="pill">Position hierarchy</span><span class="pill">Foundation object drift</span><span class="pill">Cost centre alignment</span><span class="pill">Job code mapping</span><span class="pill">Grade and career path</span><span class="pill">HTML and Excel reports</span>
-        <p class="note">Designed to run inside your environment. Findings and reports stay under your control.</p>
+        <h3>What it checks</h3>
+        <span class="pill">Position hierarchy</span><span class="pill">Foundation object drift</span><span class="pill">Cost centre alignment</span><span class="pill">Job code mapping</span><span class="pill">Grade and career path</span><span class="pill">Foundation active status</span><span class="pill">HTML and Excel reports</span>
       </aside>
     </section>
 
+    <!-- ===== METRICS ===== -->
     <section class="metrics">
-      <div class="panel metric"><strong>9</strong> configurable validation checks</div>
-      <div class="panel metric"><strong>2</strong> modes: CLI and Flask web UI</div>
-      <div class="panel metric"><strong>0</strong> full tenant extract required</div>
+      <div class="panel metric"><strong class="blue">17</strong><span class="muted-sub">configurable checks</span></div>
+      <div class="panel metric"><strong class="green">2</strong><span class="muted-sub">modes: CLI and web UI</span></div>
+      <div class="panel metric"><strong class="gold">0</strong><span class="muted-sub">full tenant extract required</span></div>
+      <div class="panel metric"><strong class="blue">3</strong><span class="muted-sub">output formats</span></div>
     </section>
 
-    <section class="grid">
-      <div class="panel"><h2>For go-live gates</h2><ul><li>Run before country rollout.</li><li>Catch hierarchy and foundation mismatches.</li><li>Prioritise critical fixes.</li></ul></div>
-      <div class="panel"><h2>For BAU health checks</h2><ul><li>Use after foundation changes.</li><li>Detect silent drift.</li><li>Generate repeatable evidence.</li></ul></div>
-      <div class="panel"><h2>For consultants</h2><ul><li>Explain issues in business language.</li><li>Export remediation reports.</li><li>Configure rules per client.</li></ul></div>
+    <!-- ===== ZERO-DATA-EXTRACTION ===== -->
+    <section class="section">
+      <div class="safe-box">
+        <div class="icon">&#128274;</div>
+        <h2>Zero data extraction. In-tenant safe.</h2>
+        <p style="color:var(--muted);max-width:900px">This tool is designed to run <strong style="color:var(--text)">inside your SAP SuccessFactors environment</strong>. It connects to your tenant via OData v2 APIs, fetches only the specific position and foundation records needed for validation, runs all checks locally, and produces reports that stay under your control.</p>
+        <div class="grid3" style="margin-top:14px">
+          <div class="step">
+            <b>No external data flow</b>
+            <p style="color:var(--muted);font-size:13px;margin:6px 0 0">All data processing happens on your machine or server. No third-party API, no cloud upload, no external storage.</p>
+          </div>
+          <div class="step">
+            <b>Targeted fetch only</b>
+            <p style="color:var(--muted);font-size:13px;margin:6px 0 0">Only unique foundation codes actually referenced by your positions are fetched. Not the entire FO dataset.</p>
+          </div>
+          <div class="step">
+            <b>Credentials stay local</b>
+            <p style="color:var(--muted);font-size:13px;margin:6px 0 0">Configured via `.env` or OS keyring. Never committed to version control. No credentials leave your machine.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== RULE CATALOGUE ===== -->
+    <section class="section">
+      <h2>Rule catalogue - 17 configurable checks</h2>
+      <p style="color:var(--muted)">Each check runs against every position. Rules can be enabled, disabled, or hidden per client. Edit <code style="background:var(--panel2);padding:2px 6px;border-radius:4px">config/rules.yaml</code> to customise.</p>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Rule</th><th>Category</th><th>Description</th><th>Severity</th><th>Fixed by</th><th>Business impact if ignored</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><td>CHK-01</td><td>Hierarchy</td><td>Sub Department must belong to the Position's Department</td><td><span class="badge badge-critical">CRITICAL</span></td><td>HR Operations</td><td>Org chart broken; incorrect reporting lines</td></tr>
+            <tr><td>CHK-02</td><td>Hierarchy</td><td>Department must belong to the Position's Division</td><td><span class="badge badge-critical">CRITICAL</span></td><td>HR Operations</td><td>Headcount reports misattributed</td></tr>
+            <tr><td>CHK-03</td><td>Hierarchy</td><td>Division must be linked to the Position's Business Unit</td><td><span class="badge badge-critical">CRITICAL</span></td><td>HR Operations</td><td>Cost allocation errors across BUs</td></tr>
+            <tr><td>CHK-04</td><td>Hierarchy</td><td>Business Unit must be linked to the Position's Legal Entity</td><td><span class="badge badge-critical">CRITICAL</span></td><td>HR Operations / Finance</td><td>Legal entity reporting incorrect; payroll risk</td></tr>
+            <tr><td>CHK-05</td><td>Cost Centre</td><td>Cost Centre must be linked to the Position's Business Unit</td><td><span class="badge badge-critical">CRITICAL</span></td><td>Finance</td><td>Cost centre charges hit wrong BU; GL errors</td></tr>
+            <tr><td>CHK-06</td><td>Job Code</td><td>Job Code Job Family must match Position's Job Family</td><td><span class="badge badge-high">HIGH</span></td><td>Job Architect</td><td>Incorrect workforce segmentation</td></tr>
+            <tr><td>CHK-07</td><td>Job Code</td><td>Job Code Sub Family must match Position's Job Sub Family</td><td><span class="badge badge-high">HIGH</span></td><td>Job Architect</td><td>Career path misalignment</td></tr>
+            <tr><td>CHK-08</td><td>Job Code</td><td>Job Code Grade must match Position's Global Job Level</td><td><span class="badge badge-high">HIGH</span></td><td>Job Architect / Comp</td><td>Grade mismatch risks compensation errors</td></tr>
+            <tr><td>CHK-09</td><td>Job Code</td><td>Job Code Career Path must match Position's Career Path</td><td><span class="badge badge-high">HIGH</span></td><td>Job Architect</td><td>Career path gap; talent review impact</td></tr>
+            <tr><td>CHK-10</td><td>Foundation Status</td><td>Legal Entity must be active on selected run date</td><td><span class="badge badge-critical">CRITICAL</span></td><td>HR Operations</td><td>Inactive entity referenced; payroll failure risk</td></tr>
+            <tr><td>CHK-11</td><td>Foundation Status</td><td>Business Unit must be active on selected run date</td><td><span class="badge badge-critical">CRITICAL</span></td><td>HR Operations</td><td>Inactive BU; headcount reporting gap</td></tr>
+            <tr><td>CHK-12</td><td>Foundation Status</td><td>Division must be active on selected run date</td><td><span class="badge badge-critical">CRITICAL</span></td><td>HR Operations</td><td>Inactive division; org hierarchy gap</td></tr>
+            <tr><td>CHK-13</td><td>Foundation Status</td><td>Department must be active on selected run date</td><td><span class="badge badge-critical">CRITICAL</span></td><td>HR Operations</td><td>Inactive department; positions orphaned</td></tr>
+            <tr><td>CHK-14</td><td>Foundation Status</td><td>Sub Department must be active on selected run date</td><td><span class="badge badge-critical">CRITICAL</span></td><td>HR Operations</td><td>Inactive sub-department; team structure gap</td></tr>
+            <tr><td>CHK-15</td><td>Foundation Status</td><td>Job Code must be active on selected run date</td><td><span class="badge badge-critical">CRITICAL</span></td><td>Job Architect</td><td>Inactive job code; hiring/comp issues</td></tr>
+            <tr><td>CHK-16</td><td>Foundation Status</td><td>Cost Centre must be active on selected run date</td><td><span class="badge badge-critical">CRITICAL</span></td><td>Finance</td><td>Inactive cost centre; GL posting failure</td></tr>
+            <tr><td>CHK-17</td><td>Foundation Status</td><td>Location must be active on selected run date</td><td><span class="badge badge-critical">CRITICAL</span></td><td>HR Operations</td><td>Inactive location; workforce location gap</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ===== SAMPLE FINDINGS REPORT ===== -->
+    <section class="section">
+      <h2>Sample findings report</h2>
+      <p style="color:var(--muted)">Example output from a mid-sized SAP SuccessFactors tenant with ~3,200 positions. Real reports include HTML summary dashboards, Excel workbooks with colour-coded issues, and CSV for downstream processing.</p>
+      <div class="card" style="margin-top:14px">
+        <div style="display:flex;flex-wrap:wrap;gap:16px;margin-bottom:16px">
+          <div><strong style="color:var(--muted);font-size:12px;text-transform:uppercase">Run date</strong><br>15 May 2026</div>
+          <div><strong style="color:var(--muted);font-size:12px;text-transform:uppercase">Country</strong><br>United Kingdom</div>
+          <div><strong style="color:var(--muted);font-size:12px;text-transform:uppercase">Positions checked</strong><br>3,247</div>
+          <div><strong style="color:var(--muted);font-size:12px;text-transform:uppercase">Issues found</strong><br><span class="badge badge-critical">14 CRITICAL</span> <span class="badge badge-high">23 HIGH</span></div>
+          <div><strong style="color:var(--muted);font-size:12px;text-transform:uppercase">Clean positions</strong><br><span class="badge badge-ok">3,210 (98.9%)</span></div>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Position ID</th><th>Title</th><th>Department</th><th>Business Unit</th><th>Job Code</th><th>Cost Centre</th><th>Check</th><th>Issue</th><th>Severity</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>POS-1004821</td><td>Senior Payroll Specialist</td><td>UK Payroll Ops</td><td>UK Corporate</td><td>SF_PAYROLL_SR</td><td>CC-UK-4402</td><td>CHK-05</td><td>Cost Centre CC-UK-4402 is linked to BU "UK Retail", but position sits in BU "UK Corporate"</td><td><span class="badge badge-critical">CRITICAL</span></td>
+              </tr>
+              <tr>
+                <td>POS-1005673</td><td>HR Business Partner</td><td>UK HRBP North</td><td>UK Manufacturing</td><td>SF_HRBP_MGR</td><td>CC-UK-5510</td><td>CHK-03</td><td>Division "UK HRBP North" is not linked to BU "UK Manufacturing". Expected: UK Manufacturing. Got: UK Corporate</td><td><span class="badge badge-critical">CRITICAL</span></td>
+              </tr>
+              <tr>
+                <td>POS-1006891</td><td>Compensation Analyst</td><td>Global Reward</td><td>UK Corporate</td><td>SF_COMP_ANALYST</td><td>CC-UK-3301</td><td>CHK-08</td><td>Job Code grade "G5" does not match Position global job level "G6". Grade mismatch risks incorrect compa-ratio</td><td><span class="badge badge-high">HIGH</span></td>
+              </tr>
+              <tr>
+                <td>POS-1007210</td><td>Talent Acquisition Lead</td><td>UK TA Centre</td><td>UK Corporate</td><td>SF_TALENT_LD</td><td>CC-UK-2205</td><td>CHK-09</td><td>Job Code career path "Professional" does not match Position career path "Management"</td><td><span class="badge badge-high">HIGH</span></td>
+              </tr>
+              <tr>
+                <td>POS-1008492</td><td>Finance Manager</td><td>UK Finance Ops</td><td>UK Corporate</td><td>SF_FIN_MGR</td><td>CC-UK-9901</td><td>CHK-16</td><td>Cost Centre CC-UK-9901 is inactive as of 15 May 2026. Deactivated 02 Apr 2026</td><td><span class="badge badge-critical">CRITICAL</span></td>
+              </tr>
+              <tr>
+                <td>POS-1009134</td><td>Learning Admin</td><td>UK L&D Central</td><td>UK Corporate</td><td>SF_LRN_ADMIN</td><td>CC-UK-4408</td><td>CHK-01</td><td>Sub Department "L&D South" belongs to Department "UK HR Ops", but position is in Department "UK L&D Central"</td><td><span class="badge badge-critical">CRITICAL</span></td>
+              </tr>
+              <tr>
+                <td>POS-1010045</td><td>IT Support Engineer</td><td>UK IT Infra</td><td>UK Technology</td><td>SF_IT_SUPPORT</td><td>CC-UK-7702</td><td>CHK-06</td><td>Job Code job family "Technology" does not match Position job family "Operations"</td><td><span class="badge badge-high">HIGH</span></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <p style="color:var(--muted);font-size:13px;margin-top:12px">Sample data only. Real report includes: interactive HTML dashboard with severity breakdown by module, Excel workbook with auto-filtered columns and colour-coded rows, CSV export for ticketing systems, and run manifest JSON with audit metadata.</p>
+      </div>
+    </section>
+
+    <!-- ===== USE CASES ===== -->
+    <section class="section">
+      <h2>When to use it</h2>
+      <div class="grid3">
+        <div class="panel"><h3>Go-live gates</h3><ul><li>Run before country rollout</li><li>Catch hierarchy and foundation mismatches</li><li>Prioritise critical fixes before payroll cutover</li><li>Generate compliance evidence</li></ul></div>
+        <div class="panel"><h3>BAU health checks</h3><ul><li>Schedule after foundation changes</li><li>Detect silent drift between releases</li><li>Generate repeatable audit evidence</li><li>Track issue resolution trends</li></ul></div>
+        <div class="panel"><h3>Consultants</h3><ul><li>Explain issues in business language</li><li>Export client-ready reports</li><li>Configure rules per client engagement</li><li>Demo data quality value in workshops</li></ul></div>
+      </div>
+    </section>
+
+    <!-- ===== RELATED TOOLS ===== -->
+    <section class="section">
+      <h2>SAP SuccessFactors toolkit</h2>
+      <p style="color:var(--muted)">This tool is part of the <a href="https://sahirvhora.github.io/sf-compass/" style="color:var(--blue)">SF Compass</a> consulting suite.</p>
+      <div class="related">
+        <a href="https://sahirvhora.github.io/sf-compass/">SF Compass - Consulting hub</a>
+        <a href="https://sahirvhora.github.io/sf-release-update/">SF Release Update - Release tracker</a>
+        <a href="https://sahirvhora.github.io/sf-pay-transparency/">SF Pay Transparency - EU directive readiness</a>
+        <a href="https://sahirvhora.github.io/SAPSF_ObjectSync/">ObjectSync - Foundation sync</a>
+        <a href="https://sahirvhora.github.io/sf-value-navigator/">Value Navigator - Business case</a>
+      </div>
     </section>
   </main>
 </body>
