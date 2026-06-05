@@ -23,13 +23,16 @@ import yaml
 # Load rules from YAML
 # ---------------------------------------------------------------------------
 
-_RULES_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "config", "rules.yaml")
+_RULES_PATH = os.path.join(
+    os.path.dirname(os.path.abspath(__file__)), "config", "rules.yaml"
+)
 
 with open(_RULES_PATH, "r", encoding="utf-8") as _f:
     _rules_data = yaml.safe_load(_f)
 
 _ALL_RULES: List[Dict[str, Any]] = _rules_data.get("rules", [])
 _ENABLED_RULES: List[Dict[str, Any]] = [r for r in _ALL_RULES if r.get("enabled", True)]
+
 
 # CHECK_META is built dynamically from the YAML so reporters can consume it
 # without knowing the rule definitions themselves.
@@ -40,13 +43,14 @@ def _failed_field(rule: Dict[str, Any]) -> str:
         return rule["compare_to_position_field"]
     return rule["position_field"]
 
+
 CHECK_META: Dict[str, Dict[str, str]] = {
     rule["id"]: {
-        "category":    rule["category"],
-        "field":       _failed_field(rule),
-        "severity":    rule["severity"],
+        "category": rule["category"],
+        "field": _failed_field(rule),
+        "severity": rule["severity"],
         "description": rule.get("description", ""),
-        "visible":     rule.get("visible", True),
+        "visible": rule.get("visible", True),
     }
     for rule in _ALL_RULES  # include disabled rules so the summary table is complete
 }
@@ -55,6 +59,7 @@ CHECK_META: Dict[str, Dict[str, str]] = {
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 def _val(record: Dict[str, Any], field: str) -> Optional[str]:
     """Return stripped string value or None if absent/blank."""
@@ -86,7 +91,9 @@ def _parse_date(raw: Any) -> Optional[datetime.date]:
         try:
             ms = int(m.group(0))
             # Use epoch-day arithmetic to avoid Windows timestamp range issues.
-            return datetime.date(1970, 1, 1) + datetime.timedelta(days=(ms // 86_400_000))
+            return datetime.date(1970, 1, 1) + datetime.timedelta(
+                days=(ms // 86_400_000)
+            )
         except (ValueError, OverflowError):
             try:
                 return datetime.date.min if int(m.group(0)) < 0 else datetime.date.max
@@ -113,30 +120,31 @@ def _is_active_on_date(record: Dict[str, Any], as_of_date: datetime.date) -> boo
 def _issue(pos: Dict[str, Any], check_id: str, description: str) -> Dict[str, Any]:
     meta = CHECK_META[check_id]
     return {
-        "Position ID":          _val(pos, "code") or "",
-        "Position Title":       _val(pos, "externalName_en_US") or "",
+        "Position ID": _val(pos, "code") or "",
+        "Position Title": _val(pos, "externalName_en_US") or "",
         "Effective Start Date": _val(pos, "effectiveStartDate") or "",
-        "Legal Entity":         _val(pos, "company") or "",
-        "Business Unit":        _val(pos, "businessUnit") or "",
-        "Division":             _val(pos, "division") or "",
-        "Department":           _val(pos, "department") or "",
-        "Sub Department":       _val(pos, "cust_subDepartment") or "",
-        "Job Code":             _val(pos, "jobCode") or "",
-        "Cost Centre":          _val(pos, "costCenter") or "",
-        "Location":             _val(pos, "location") or "",
-        "Employee ID":          _val(pos, "__empjob_userId") or "",
-        "Employee Status":      _val(pos, "__empjob_emplStatus") or "",
-        "Check ID":             check_id,
-        "Check Category":       meta["category"],
-        "Failed Field":         meta["field"],
-        "Issue Description":    description,
-        "Severity":             meta["severity"],
+        "Legal Entity": _val(pos, "company") or "",
+        "Business Unit": _val(pos, "businessUnit") or "",
+        "Division": _val(pos, "division") or "",
+        "Department": _val(pos, "department") or "",
+        "Sub Department": _val(pos, "cust_subDepartment") or "",
+        "Job Code": _val(pos, "jobCode") or "",
+        "Cost Centre": _val(pos, "costCenter") or "",
+        "Location": _val(pos, "location") or "",
+        "Employee ID": _val(pos, "__empjob_userId") or "",
+        "Employee Status": _val(pos, "__empjob_emplStatus") or "",
+        "Check ID": check_id,
+        "Check Category": meta["category"],
+        "Failed Field": meta["field"],
+        "Issue Description": description,
+        "Severity": meta["severity"],
     }
 
 
 # ---------------------------------------------------------------------------
 # Rule engine
 # ---------------------------------------------------------------------------
+
 
 def _run_scalar_match(
     pos: Dict[str, Any],
@@ -248,6 +256,7 @@ def _run_foundation_active(
 # Main validation entry point
 # ---------------------------------------------------------------------------
 
+
 def validate_positions(
     positions: List[Dict[str, Any]],
     lookups: Dict[str, Any],
@@ -269,8 +278,10 @@ def validate_positions(
     for pos in positions:
         pos_code = _val(pos, "code") or ""
         empjob_rec = empjob_lookup.get(pos_code, {})
-        pos["__empjob_userId"]     = empjob_rec.get("userId", "") if empjob_rec else ""
-        pos["__empjob_emplStatus"] = empjob_rec.get("emplStatus", "") if empjob_rec else ""
+        pos["__empjob_userId"] = empjob_rec.get("userId", "") if empjob_rec else ""
+        pos["__empjob_emplStatus"] = (
+            empjob_rec.get("emplStatus", "") if empjob_rec else ""
+        )
 
     for pos in positions:
         for rule in _ENABLED_RULES:
@@ -295,6 +306,7 @@ def validate_positions(
 # Load lookups from DB (used by Only-Validate mode)
 # ---------------------------------------------------------------------------
 
+
 def build_lookups_from_db() -> Dict[str, Any]:
     """
     Load all foundation object tables from the local SQLite database and
@@ -318,19 +330,25 @@ def build_lookups_from_db() -> Dict[str, Any]:
         return result
 
     return {
-        "companies":       to_lookup("fo_company"),
-        "business_units":  to_lookup("fo_business_unit"),
-        "divisions":       to_lookup("fo_division"),
-        "departments":     to_lookup("fo_department"),
+        "companies": to_lookup("fo_company"),
+        "business_units": to_lookup("fo_business_unit"),
+        "divisions": to_lookup("fo_division"),
+        "departments": to_lookup("fo_department"),
         "sub_departments": to_lookup("cust_sub_department"),
-        "job_codes":       to_lookup("fo_job_code"),
-        "job_class_can":   to_lookup("fo_job_class_local_can"),
-        "cost_centers":    to_lookup("fo_cost_center"),
-        "locations":       to_lookup("fo_location"),
+        "job_codes": to_lookup("fo_job_code"),
+        "job_class_can": to_lookup("fo_job_class_local_can"),
+        "cost_centers": to_lookup("fo_cost_center"),
+        "locations": to_lookup("fo_location"),
         # EmpJob: current employee assignment keyed by position_code
-        "empjob":          {r["position_code"]: r for r in load_table("emp_job")},
+        "empjob": {r["position_code"]: r for r in load_table("emp_job")},
         # Set-valued junction lookups
-        "div_to_bus": to_set_lookup("fo_division_business_unit", "division_code", "bu_code"),
-        "bu_to_les":  to_set_lookup("fo_bu_legal_entity",        "bu_code",        "legal_entity_code"),
-        "cc_to_bus":  to_set_lookup("fo_cost_center_business_unit", "cost_center_code", "bu_code"),
+        "div_to_bus": to_set_lookup(
+            "fo_division_business_unit", "division_code", "bu_code"
+        ),
+        "bu_to_les": to_set_lookup(
+            "fo_bu_legal_entity", "bu_code", "legal_entity_code"
+        ),
+        "cc_to_bus": to_set_lookup(
+            "fo_cost_center_business_unit", "cost_center_code", "bu_code"
+        ),
     }

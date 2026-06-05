@@ -16,7 +16,7 @@ in fetchers.py before saving).
 import os
 import re as _re
 import sqlite3
-from datetime import date, datetime, timedelta, timezone
+from datetime import date, datetime, timedelta
 from typing import Any, Dict, List, Optional
 
 DB_DIR = "data"
@@ -28,12 +28,14 @@ def set_country(country: str) -> None:
     global DB_PATH
     DB_PATH = os.path.join(DB_DIR, f"sf_integrity_{country.upper()}.db")
 
+
 # Matches column names ending in "Date" or "date" (e.g. startDate, effectiveStartDate)
 _DATE_COL_RE = _re.compile(r"[Dd]ate$")
 
 # ---------------------------------------------------------------------------
 # Date normalisation helper
 # ---------------------------------------------------------------------------
+
 
 def normalise_date(raw: str) -> str:
     """
@@ -64,7 +66,11 @@ def normalise_date(raw: str) -> str:
             return d.strftime("%Y-%m-%d")
         except (ValueError, OverflowError):
             try:
-                return date.min.strftime("%Y-%m-%d") if int(ms_str) < 0 else date.max.strftime("%Y-%m-%d")
+                return (
+                    date.min.strftime("%Y-%m-%d")
+                    if int(ms_str) < 0
+                    else date.max.strftime("%Y-%m-%d")
+                )
             except ValueError:
                 return raw
     # Already ISO - truncate to date part
@@ -307,75 +313,140 @@ WHERE p.company IS NOT NULL AND p.company != ''
 # Junction tables are handled separately via save_pipe_sep_junctions().
 _TABLE_COLS: Dict[str, List[str]] = {
     "positions": [
-        "code", "externalName_en_US", "effectiveStartDate", "effectiveEndDate",
-        "effectiveStatus", "company", "businessUnit", "division", "department",
-        "cust_subDepartment", "jobCode", "costCenter", "location", "cust_Country",
-        "cust_JobFunction", "cust_jobSubFunction", "cust_GlobalJobLevel",
-        "cust_CareerPath", "payGrade",
+        "code",
+        "externalName_en_US",
+        "effectiveStartDate",
+        "effectiveEndDate",
+        "effectiveStatus",
+        "company",
+        "businessUnit",
+        "division",
+        "department",
+        "cust_subDepartment",
+        "jobCode",
+        "costCenter",
+        "location",
+        "cust_Country",
+        "cust_JobFunction",
+        "cust_jobSubFunction",
+        "cust_GlobalJobLevel",
+        "cust_CareerPath",
+        "payGrade",
     ],
     "fo_company": [
-        "externalCode", "startDate", "endDate", "status", "description", "country",
+        "externalCode",
+        "startDate",
+        "endDate",
+        "status",
+        "description",
+        "country",
     ],
     # cust_legalEntity removed - see fo_bu_legal_entity junction table
     "fo_business_unit": [
-        "externalCode", "startDate", "endDate", "status", "description",
+        "externalCode",
+        "startDate",
+        "endDate",
+        "status",
+        "description",
     ],
     # cust_BusinessUnit removed - see fo_division_business_unit junction table
     "fo_division": [
-        "externalCode", "startDate", "endDate", "status", "description",
+        "externalCode",
+        "startDate",
+        "endDate",
+        "status",
+        "description",
     ],
     "fo_department": [
-        "externalCode", "startDate", "endDate", "status", "description",
+        "externalCode",
+        "startDate",
+        "endDate",
+        "status",
+        "description",
         "cust_Division",
     ],
     # Uses standardised names (startDate/endDate/status) aliased in fetchers.py
     "cust_sub_department": [
-        "externalCode", "startDate", "endDate",
-        "status", "externalName_en_US", "cust_Department",
+        "externalCode",
+        "startDate",
+        "endDate",
+        "status",
+        "externalName_en_US",
+        "cust_Department",
     ],
     "fo_job_code": [
-        "externalCode", "startDate", "endDate", "status", "name_en_US",
-        "jobFunction", "cust_jobsubfunction", "grade", "cust_careerPath",
+        "externalCode",
+        "startDate",
+        "endDate",
+        "status",
+        "name_en_US",
+        "jobFunction",
+        "cust_jobsubfunction",
+        "grade",
+        "cust_careerPath",
     ],
     "fo_job_class_local_can": [
-        "externalCode", "startDate", "endDate", "status", "cust_LocalJobLevel",
+        "externalCode",
+        "startDate",
+        "endDate",
+        "status",
+        "cust_LocalJobLevel",
         "country",
     ],
     # cust_BusinessUnit removed - see fo_cost_center_business_unit junction table
     "fo_cost_center": [
-        "externalCode", "startDate", "endDate", "status", "description",
+        "externalCode",
+        "startDate",
+        "endDate",
+        "status",
+        "description",
     ],
     "fo_location": [
-        "externalCode", "startDate", "endDate", "status", "description",
+        "externalCode",
+        "startDate",
+        "endDate",
+        "status",
+        "description",
     ],
     "emp_job": [
-        "position_code", "userId", "emplStatus", "startDate",
+        "position_code",
+        "userId",
+        "emplStatus",
+        "startDate",
     ],
 }
 
 # Columns saved to validation_results (stale snapshot fields removed)
 _VALIDATION_COLS = [
-    "extract_meta_id", "run_timestamp", "position_code", "position_title",
-    "effectiveStartDate", "check_id", "check_category", "failed_field",
-    "issue_description", "severity",
+    "extract_meta_id",
+    "run_timestamp",
+    "position_code",
+    "position_title",
+    "effectiveStartDate",
+    "check_id",
+    "check_category",
+    "failed_field",
+    "issue_description",
+    "severity",
 ]
 
 # Map from reporters.py issue-dict keys → validation_results column names
 _ISSUE_KEY_MAP = {
-    "Position ID":          "position_code",
-    "Position Title":       "position_title",
+    "Position ID": "position_code",
+    "Position Title": "position_title",
     "Effective Start Date": "effectiveStartDate",
-    "Check ID":             "check_id",
-    "Check Category":       "check_category",
-    "Failed Field":         "failed_field",
-    "Issue Description":    "issue_description",
-    "Severity":             "severity",
+    "Check ID": "check_id",
+    "Check Category": "check_category",
+    "Failed Field": "failed_field",
+    "Issue Description": "issue_description",
+    "Severity": "severity",
 }
 
 
 # ---------------------------------------------------------------------------
 # Connection helpers
 # ---------------------------------------------------------------------------
+
 
 def get_connection(read_only: bool = False) -> sqlite3.Connection:
     """Return a sqlite3 connection. Raises FileNotFoundError if DB missing in read-only mode."""
@@ -419,6 +490,7 @@ def init_db() -> None:
 # ---------------------------------------------------------------------------
 # Save helpers
 # ---------------------------------------------------------------------------
+
 
 def _norm_val(col: str, raw: Any) -> str:
     """Stringify a value, normalising date columns to YYYY-MM-DD."""
@@ -528,6 +600,7 @@ def save_validation_results(
 # Load helpers
 # ---------------------------------------------------------------------------
 
+
 def load_table(table_name: str) -> List[Dict[str, Any]]:
     """Load all rows from a table as a list of plain dicts."""
     conn = get_connection(read_only=True)
@@ -541,7 +614,10 @@ def load_table(table_name: str) -> List[Dict[str, Any]]:
 # Extract-meta helpers
 # ---------------------------------------------------------------------------
 
-def save_extract_meta(country: str, positions_fetched: int, complete: bool = False) -> int:
+
+def save_extract_meta(
+    country: str, positions_fetched: int, complete: bool = False
+) -> int:
     conn = get_connection()
     try:
         ts = datetime.now().isoformat(timespec="seconds")
@@ -559,7 +635,9 @@ def save_extract_meta(country: str, positions_fetched: int, complete: bool = Fal
 def mark_extract_complete(meta_id: int) -> None:
     conn = get_connection()
     try:
-        conn.execute("UPDATE extract_meta SET extract_complete=1 WHERE id=?", (meta_id,))
+        conn.execute(
+            "UPDATE extract_meta SET extract_complete=1 WHERE id=?", (meta_id,)
+        )
         conn.commit()
     finally:
         conn.close()

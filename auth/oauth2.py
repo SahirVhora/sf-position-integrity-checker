@@ -26,10 +26,10 @@ _token_expiry: Optional[datetime] = None
 def _load_required_vars() -> dict:
     """Load and validate required OAuth2 env vars. Raises ValueError if any are missing."""
     required = {
-        "SF_CLIENT_ID":       os.environ.get("SF_CLIENT_ID", ""),
-        "SF_COMPANY_ID":      os.environ.get("SF_COMPANY_ID", ""),
-        "SF_USER_ID":         os.environ.get("SF_USER_ID", ""),
-        "SF_TOKEN_URL":       os.environ.get("SF_TOKEN_URL", ""),
+        "SF_CLIENT_ID": os.environ.get("SF_CLIENT_ID", ""),
+        "SF_COMPANY_ID": os.environ.get("SF_COMPANY_ID", ""),
+        "SF_USER_ID": os.environ.get("SF_USER_ID", ""),
+        "SF_TOKEN_URL": os.environ.get("SF_TOKEN_URL", ""),
         "SF_PRIVATE_KEY_PATH": os.environ.get("SF_PRIVATE_KEY_PATH", ""),
     }
     missing = [k for k, v in required.items() if not v]
@@ -70,11 +70,11 @@ def _build_saml_assertion(vars: dict) -> bytes:
 
     now = datetime.now(tz=timezone.utc)
     not_before = now.strftime("%Y-%m-%dT%H:%M:%SZ")
-    not_after  = (now + timedelta(minutes=10)).strftime("%Y-%m-%dT%H:%M:%SZ")
+    not_after = (now + timedelta(minutes=10)).strftime("%Y-%m-%dT%H:%M:%SZ")
     assertion_id = f"_{uuid.uuid4()}"
 
     # XML namespaces
-    SAML  = "urn:oasis:names:tc:SAML:2.0:assertion"
+    SAML = "urn:oasis:names:tc:SAML:2.0:assertion"
     nsmap = {"saml": SAML}
 
     assertion = etree.Element(f"{{{SAML}}}Assertion", nsmap=nsmap)
@@ -97,15 +97,21 @@ def _build_saml_assertion(vars: dict) -> bytes:
     conditions.set("NotBefore", not_before)
     conditions.set("NotOnOrAfter", not_after)
 
-    audience_restriction = etree.SubElement(conditions, f"{{{SAML}}}AudienceRestriction")
+    audience_restriction = etree.SubElement(
+        conditions, f"{{{SAML}}}AudienceRestriction"
+    )
     audience = etree.SubElement(audience_restriction, f"{{{SAML}}}Audience")
     audience.text = vars["SF_TOKEN_URL"]
 
     authn_stmt = etree.SubElement(assertion, f"{{{SAML}}}AuthnStatement")
     authn_stmt.set("AuthnInstant", not_before)
     authn_context = etree.SubElement(authn_stmt, f"{{{SAML}}}AuthnContext")
-    authn_context_class = etree.SubElement(authn_context, f"{{{SAML}}}AuthnContextClassRef")
-    authn_context_class.text = "urn:oasis:names:tc:SAML:2.0:ac:classes:PasswordProtectedTransport"
+    authn_context_class = etree.SubElement(
+        authn_context, f"{{{SAML}}}AuthnContextClassRef"
+    )
+    authn_context_class.text = (
+        "urn:oasis:names:tc:SAML:2.0:ac:classes:PasswordProtectedTransport"
+    )
 
     signer = XMLSigner(
         method=XMLSigner.excl_c14n,
@@ -117,7 +123,9 @@ def _build_saml_assertion(vars: dict) -> bytes:
         key=private_key,
         reference_uri=f"#{assertion_id}",
     )
-    return etree.tostring(signed_root, xml_declaration=False, encoding="unicode").encode("utf-8")
+    return etree.tostring(
+        signed_root, xml_declaration=False, encoding="unicode"
+    ).encode("utf-8")
 
 
 def _fetch_token(vars: dict) -> tuple:
@@ -130,10 +138,10 @@ def _fetch_token(vars: dict) -> tuple:
     assertion_b64 = base64.urlsafe_b64encode(signed_xml).decode("utf-8")
 
     data = {
-        "grant_type":  "urn:ietf:params:oauth:grant-type:saml2-bearer",
-        "client_id":   vars["SF_CLIENT_ID"],
-        "company_id":  vars["SF_COMPANY_ID"],
-        "assertion":   assertion_b64,
+        "grant_type": "urn:ietf:params:oauth:grant-type:saml2-bearer",
+        "client_id": vars["SF_CLIENT_ID"],
+        "company_id": vars["SF_COMPANY_ID"],
+        "assertion": assertion_b64,
     }
 
     resp = requests.post(vars["SF_TOKEN_URL"], data=data, timeout=30)
@@ -146,7 +154,7 @@ def _fetch_token(vars: dict) -> tuple:
 
     payload = resp.json()
     access_token = payload.get("access_token")
-    expires_in   = int(payload.get("expires_in", 86400))
+    expires_in = int(payload.get("expires_in", 86400))
 
     if not access_token:
         raise RuntimeError(

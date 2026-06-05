@@ -20,12 +20,14 @@ from reporters import VERSION, GITHUB_URL
 # UI helpers
 # ---------------------------------------------------------------------------
 
+
 def _print_banner() -> None:
     import config
-    width  = 67
+
+    width = 67
     border = "═" * width
-    tool   = f"SF Position Integrity Checker  v{VERSION}"
-    url    = GITHUB_URL
+    tool = f"SF Position Integrity Checker  v{VERSION}"
+    url = GITHUB_URL
     auth_label = (
         "Auth: OAuth2 SAML Bearer Token"
         if config.AUTH_METHOD == "oauth2"
@@ -40,6 +42,7 @@ def _print_banner() -> None:
 
 def _print_header(country: str) -> None:
     import config
+
     run_date = datetime.date.today().isoformat()
     print("=" * 70)
     print("  SAP SuccessFactors - Position Integrity Checker")
@@ -97,6 +100,7 @@ def _pick_mode() -> int:
 # Validate + report (shared between mode 1 and mode 2)
 # ---------------------------------------------------------------------------
 
+
 def _do_validate(country: str, as_of_date: datetime.date | None = None) -> None:
     """Load positions + lookups from DB, run validation, write all reports."""
     import config
@@ -118,7 +122,7 @@ def _do_validate(country: str, as_of_date: datetime.date | None = None) -> None:
         f"{meta['positions_fetched']} positions)..."
     )
     positions = load_table("positions")
-    lookups   = build_lookups_from_db()
+    lookups = build_lookups_from_db()
 
     target_date = as_of_date or datetime.date.today()
     print(
@@ -129,6 +133,7 @@ def _do_validate(country: str, as_of_date: datetime.date | None = None) -> None:
     print(f"[INFO] Validation complete. {len(issues)} issue(s) found.")
 
     from datetime import datetime as dt
+
     run_ts = dt.now().isoformat(timespec="seconds")
     save_validation_results(issues, run_ts, meta["id"])
 
@@ -147,6 +152,7 @@ def _do_validate(country: str, as_of_date: datetime.date | None = None) -> None:
 # Main run logic
 # ---------------------------------------------------------------------------
 
+
 def run() -> None:
     _print_banner()
 
@@ -162,10 +168,13 @@ def run() -> None:
     # ------------------------------------------------------------------
     if mode == 1:
         from fetchers import run_full_extract
+
         summary = run_full_extract(country, as_of_date=as_of_date)
         if not summary.get("positions"):
             sys.exit(0)
-        print(f"\n[INFO] Extract complete ({summary['positions']} positions). Starting validation...")
+        print(
+            f"\n[INFO] Extract complete ({summary['positions']} positions). Starting validation..."
+        )
         _do_validate(country, as_of_date=as_of_date)
 
     # ------------------------------------------------------------------
@@ -179,6 +188,7 @@ def run() -> None:
     # ------------------------------------------------------------------
     elif mode == 3:
         from fetchers import run_full_extract
+
         summary = run_full_extract(country, as_of_date=as_of_date)
         if not summary.get("positions"):
             sys.exit(0)
@@ -186,7 +196,9 @@ def run() -> None:
         max_key = max(len(k) for k in summary)
         for entity, count in summary.items():
             print(f"  {entity:<{max_key}} : {count:>6} record(s)")
-        print(f"\n[DONE] Data extracted and saved to ./data/sf_integrity_{country}.db\n")
+        print(
+            f"\n[DONE] Data extracted and saved to ./data/sf_integrity_{country}.db\n"
+        )
 
 
 def main() -> None:

@@ -41,11 +41,10 @@ COLUMNS = [
 ]
 
 # Colours
-HEADER_FILL        = PatternFill("solid", fgColor="1F3864")   # navy blue
-CRITICAL_FILL      = PatternFill("solid", fgColor="FFD7D7")   # light red
-HIGH_FILL          = PatternFill("solid", fgColor="FFE4C4")   # light orange
+HEADER_FILL = PatternFill("solid", fgColor="1F3864")  # navy blue
+CRITICAL_FILL = PatternFill("solid", fgColor="FFD7D7")  # light red
+HIGH_FILL = PatternFill("solid", fgColor="FFE4C4")  # light orange
 SUMMARY_LABEL_FILL = PatternFill("solid", fgColor="DCE6F1")
-
 
 
 def _ensure_output_dir() -> None:
@@ -70,7 +69,7 @@ def _fmt_date(raw: Any) -> str:
             return s
     for fmt in ("%Y-%m-%d", "%Y-%m-%dT%H:%M:%S", "%Y-%m-%dT%H:%M:%S.%f"):
         try:
-            return datetime.datetime.strptime(s[:len(fmt)], fmt).strftime("%m/%d/%Y")
+            return datetime.datetime.strptime(s[: len(fmt)], fmt).strftime("%m/%d/%Y")
         except ValueError:
             pass
     try:
@@ -92,7 +91,12 @@ def _normalise_dates(issues: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
 def _visible_issues(issues: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
     """Return only issues whose rule has visible: true (default)."""
     from validators import CHECK_META
-    return [i for i in issues if CHECK_META.get(i.get("Check ID", ""), {}).get("visible", True)]
+
+    return [
+        i
+        for i in issues
+        if CHECK_META.get(i.get("Check ID", ""), {}).get("visible", True)
+    ]
 
 
 def _df_from_issues(issues: List[Dict[str, Any]]) -> pd.DataFrame:
@@ -123,6 +127,7 @@ def _instance_name(tenant_url: str, instance_id: str = "") -> str:
 # CSV
 # ---------------------------------------------------------------------------
 
+
 def write_csv(issues: List[Dict[str, Any]], country: str = "CA") -> str:
     _ensure_output_dir()
     path = os.path.join(OUTPUT_DIR, f"position_integrity_{country}_{_datestamp()}.csv")
@@ -136,13 +141,14 @@ def write_csv(issues: List[Dict[str, Any]], country: str = "CA") -> str:
 # Excel
 # ---------------------------------------------------------------------------
 
+
 def write_excel(
     issues: List[Dict[str, Any]],
     total_positions: int,
     country: str = "CA",
     tenant_url: str = "",
     instance_id: str = "",
-  as_of_date: datetime.date | None = None,
+    as_of_date: datetime.date | None = None,
 ) -> str:
     _ensure_output_dir()
     path = os.path.join(OUTPUT_DIR, f"position_integrity_{country}_{_datestamp()}.xlsx")
@@ -154,13 +160,13 @@ def write_excel(
     ws_sum = wb.active
     ws_sum.title = "Summary"
     _build_summary_sheet(
-      ws_sum,
-      normalised,
-      total_positions,
-      country,
-      tenant_url,
-      instance_id,
-      as_of_date=as_of_date,
+        ws_sum,
+        normalised,
+        total_positions,
+        country,
+        tenant_url,
+        instance_id,
+        as_of_date=as_of_date,
     )
 
     # ---- Issues sheet -------------------------------------------------------
@@ -213,8 +219,8 @@ def _build_summary_sheet(
 ) -> None:
     run_date = (as_of_date or datetime.date.today()).isoformat()
     critical_count = sum(1 for i in issues if i.get("Severity") == "CRITICAL")
-    high_count     = sum(1 for i in issues if i.get("Severity") == "HIGH")
-    check_counts   = Counter(i.get("Check ID") for i in issues)
+    high_count = sum(1 for i in issues if i.get("Severity") == "HIGH")
+    check_counts = Counter(i.get("Check ID") for i in issues)
 
     # --- Row 1: Branding header spanning A:D ---
     ws.merge_cells("A1:D1")
@@ -244,21 +250,24 @@ def _build_summary_sheet(
         vc.alignment = Alignment(horizontal="left")
 
     instance = _instance_name(tenant_url, instance_id)
-    label_value(5,  "SF Instance:",         instance if instance else " - ")
-    label_value(6,  "Country:",             country)
-    label_value(7,  "As-of Date:",          run_date)
-    label_value(8,  "Positions Checked:",   total_positions)
-    label_value(9,  "Total Issues Found:",  len(issues))
-    label_value(10, "CRITICAL Issues:",     critical_count)
-    label_value(11, "HIGH Issues:",         high_count)
+    label_value(5, "SF Instance:", instance if instance else " - ")
+    label_value(6, "Country:", country)
+    label_value(7, "As-of Date:", run_date)
+    label_value(8, "Positions Checked:", total_positions)
+    label_value(9, "Total Issues Found:", len(issues))
+    label_value(10, "CRITICAL Issues:", critical_count)
+    label_value(11, "HIGH Issues:", high_count)
 
     # Check breakdown table header (shifted down by 1 to accommodate instance row)
-    for col_idx, label in enumerate(["Check ID", "Description", "Severity", "Count"], start=1):
+    for col_idx, label in enumerate(
+        ["Check ID", "Description", "Severity", "Count"], start=1
+    ):
         cell = ws.cell(row=13, column=col_idx, value=label)
         cell.font = Font(bold=True, color="FFFFFF")
         cell.fill = HEADER_FILL
 
     from validators import CHECK_META
+
     for r_offset, (chk_id, meta) in enumerate(sorted(CHECK_META.items()), start=1):
         cnt = check_counts.get(chk_id, 0)
         row = 13 + r_offset
@@ -280,6 +289,7 @@ def _build_summary_sheet(
 # HTML
 # ---------------------------------------------------------------------------
 
+
 def write_html(
     issues: List[Dict[str, Any]],
     total_positions: int,
@@ -290,7 +300,9 @@ def write_html(
 ) -> str:
     _ensure_output_dir()
     path = os.path.join(OUTPUT_DIR, f"position_integrity_{country}_{_datestamp()}.html")
-    html = _build_html(issues, total_positions, country, tenant_url, instance_id, as_of_date=as_of_date)
+    html = _build_html(
+        issues, total_positions, country, tenant_url, instance_id, as_of_date=as_of_date
+    )
     with open(path, "w", encoding="utf-8") as f:
         f.write(html)
     print(f"  HTML -> {path}")
@@ -305,14 +317,14 @@ def _build_html(
     instance_id: str = "",
     as_of_date: datetime.date | None = None,
 ) -> str:
-    run_dt   = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    run_dt = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     run_date = (as_of_date or datetime.date.today()).isoformat()
     instance = _instance_name(tenant_url, instance_id)
     critical_count = sum(1 for i in issues if i.get("Severity") == "CRITICAL")
-    high_count     = sum(1 for i in issues if i.get("Severity") == "HIGH")
+    high_count = sum(1 for i in issues if i.get("Severity") == "HIGH")
 
     severities = sorted({i.get("Severity", "") for i in issues} - {""})
-    check_ids  = sorted({i.get("Check ID", "") for i in issues} - {""})
+    check_ids = sorted({i.get("Check ID", "") for i in issues} - {""})
     categories = sorted({i.get("Check Category", "") for i in issues} - {""})
     employee_statuses = sorted({i.get("Employee Status", "") for i in issues} - {""})
     has_vacant_rows = any(not str(i.get("Employee Status", "")).strip() for i in issues)
@@ -324,8 +336,8 @@ def _build_html(
 
     rows_html_parts = []
     for issue in issues:
-        sev   = issue.get("Severity", "")
-        css   = "critical" if sev == "CRITICAL" else "high"
+        sev = issue.get("Severity", "")
+        css = "critical" if sev == "CRITICAL" else "high"
         cells = "".join(f"<td>{issue.get(c, '')}</td>" for c in COLUMNS)
         rows_html_parts.append(f'<tr class="{css}">{cells}</tr>')
     rows_html = "\n".join(rows_html_parts)
@@ -342,20 +354,20 @@ def _build_html(
     vacant_positions = 0
     other_positions = 0
     for idx, issue in enumerate(issues):
-      position_id = str(issue.get("Position ID", "")).strip() or f"__row_{idx}"
-      if position_id in seen_positions:
-        continue
-      seen_positions.add(position_id)
+        position_id = str(issue.get("Position ID", "")).strip() or f"__row_{idx}"
+        if position_id in seen_positions:
+            continue
+        seen_positions.add(position_id)
 
-      emp_status = str(issue.get("Employee Status", "")).strip().lower()
-      if not emp_status:
-        vacant_positions += 1
-      elif emp_status == "active":
-        active_positions += 1
-      elif emp_status == "terminated":
-        terminated_positions += 1
-      else:
-        other_positions += 1
+        emp_status = str(issue.get("Employee Status", "")).strip().lower()
+        if not emp_status:
+            vacant_positions += 1
+        elif emp_status == "active":
+            active_positions += 1
+        elif emp_status == "terminated":
+            terminated_positions += 1
+        else:
+            other_positions += 1
 
     return f"""<!DOCTYPE html>
 <html lang="en">
@@ -445,7 +457,7 @@ def _build_html(
     <h1>SF Position Integrity Checker</h1>
     <div class="sub">Country: {country} &nbsp;|&nbsp; As-of Date: {run_date} &nbsp;|&nbsp; Generated: {run_dt}</div>
   </div>
-  {f'''<div class="instance-badge"><span class="lbl">SF Instance</span><span class="val">{instance}</span></div>''' if instance else ''}
+  {f'''<div class="instance-badge"><span class="lbl">SF Instance</span><span class="val">{instance}</span></div>''' if instance else ""}
 </div>
 
 <div class="cards">
@@ -480,7 +492,7 @@ def _build_html(
     <div class="num">{vacant_positions}</div>
     <div class="lbl">Vacant Positions (in findings)</div>
   </div>
-  {f'''<div class="card status-other"><div class="num">{other_positions}</div><div class="lbl">Other Employee Status</div></div>''' if other_positions else ''}
+  {f'''<div class="card status-other"><div class="num">{other_positions}</div><div class="lbl">Other Employee Status</div></div>''' if other_positions else ""}
 </div>
 
 <div class="filters">
@@ -506,7 +518,7 @@ def _build_html(
     <select id="f-empstatus" onchange="applyFilters()">
       <option value="">All</option>
       {opts(employee_statuses)}
-      {"<option value=\"__vacant__\">Vacant</option>" if has_vacant_rows else ""}
+      {'<option value="__vacant__">Vacant</option>' if has_vacant_rows else ""}
     </select>
   </label>
   <label>Search
@@ -661,33 +673,46 @@ function sortTable(col) {{
 # Console summary table
 # ---------------------------------------------------------------------------
 
+
 def print_console_summary(
     issues: List[Dict[str, Any]],
     total_positions: int,
     country: str,
-  as_of_date: datetime.date | None = None,
+    as_of_date: datetime.date | None = None,
 ) -> None:
     check_counts = Counter(i.get("Check ID") for i in issues)
     critical_n = sum(1 for i in issues if i.get("Severity") == "CRITICAL")
-    high_n     = sum(1 for i in issues if i.get("Severity") == "HIGH")
+    high_n = sum(1 for i in issues if i.get("Severity") == "HIGH")
 
     from validators import CHECK_META
 
     print("\n")
-    print("╔══════════╦══════════════════════════════════════════════╦══════════╦═══════════╗")
-    print("║ Check ID ║ Description                                  ║ Severity ║   Count   ║")
-    print("╠══════════╬══════════════════════════════════════════════╬══════════╬═══════════╣")
+    print(
+        "╔══════════╦══════════════════════════════════════════════╦══════════╦═══════════╗"
+    )
+    print(
+        "║ Check ID ║ Description                                  ║ Severity ║   Count   ║"
+    )
+    print(
+        "╠══════════╬══════════════════════════════════════════════╬══════════╬═══════════╣"
+    )
     for chk_id in sorted(CHECK_META.keys()):
-        cnt  = check_counts.get(chk_id, 0)
-        sev  = CHECK_META[chk_id]["severity"]
+        cnt = check_counts.get(chk_id, 0)
+        sev = CHECK_META[chk_id]["severity"]
         desc = CHECK_META[chk_id].get("description", "")[:44].ljust(44)
-        chk  = chk_id.ljust(8)
+        chk = chk_id.ljust(8)
         sev_s = sev.ljust(8)
         cnt_s = str(cnt).center(9)
         print(f"║ {chk} ║ {desc} ║ {sev_s} ║ {cnt_s} ║")
-    print("╠══════════╬══════════════════════════════════════════════╬══════════╬═══════════╣")
-    print(f"║ {'TOTAL'.ljust(8)} ║ {''.ljust(44)} ║ {''.ljust(8)} ║ {str(len(issues)).center(9)} ║")
-    print("╚══════════╩══════════════════════════════════════════════╩══════════╩═══════════╝")
+    print(
+        "╠══════════╬══════════════════════════════════════════════╬══════════╬═══════════╣"
+    )
+    print(
+        f"║ {'TOTAL'.ljust(8)} ║ {''.ljust(44)} ║ {''.ljust(8)} ║ {str(len(issues)).center(9)} ║"
+    )
+    print(
+        "╚══════════╩══════════════════════════════════════════════╩══════════╩═══════════╝"
+    )
     print(f"\n  Positions Checked : {total_positions}")
     print(f"  Total Issues      : {len(issues)}")
     print(f"  CRITICAL          : {critical_n}")
@@ -700,44 +725,45 @@ def print_console_summary(
 # Run manifest
 # ---------------------------------------------------------------------------
 
+
 def write_run_manifest(
     issues: List[Dict[str, Any]],
     total_positions: int,
     country: str,
     tenant_url: str = "",
     checks_disabled: List[str] = None,
-  as_of_date: datetime.date | None = None,
+    as_of_date: datetime.date | None = None,
 ) -> str:
     """Write output/run_manifest.json after every validation run."""
     _ensure_output_dir()
     path = os.path.join(OUTPUT_DIR, "run_manifest.json")
 
-    from validators import CHECK_META, _ENABLED_RULES, _ALL_RULES
+    from validators import _ENABLED_RULES, _ALL_RULES
 
-    checks_run      = sorted(r["id"] for r in _ENABLED_RULES)
-    all_check_ids   = {r["id"] for r in _ALL_RULES}
-    enabled_ids     = set(checks_run)
+    checks_run = sorted(r["id"] for r in _ENABLED_RULES)
+    all_check_ids = {r["id"] for r in _ALL_RULES}
+    enabled_ids = set(checks_run)
     checks_disabled = checks_disabled or sorted(all_check_ids - enabled_ids)
 
     visible = _visible_issues(issues)
-    hidden_n   = len(issues) - len(visible)
+    hidden_n = len(issues) - len(visible)
     critical_n = sum(1 for i in issues if i.get("Severity") == "CRITICAL")
-    high_n     = sum(1 for i in issues if i.get("Severity") == "HIGH")
+    high_n = sum(1 for i in issues if i.get("Severity") == "HIGH")
 
     manifest = {
-        "tool":               "SF Position Integrity Checker",
-        "version":            VERSION,
-        "run_timestamp":      datetime.datetime.now().isoformat(timespec="seconds"),
-        "tenant_url":         _mask_tenant_url(tenant_url) if tenant_url else "",
-        "country":            country,
-        "as_of_date":         (as_of_date or datetime.date.today()).isoformat(),
-        "positions_checked":  total_positions,
-        "total_issues":       len(issues),
+        "tool": "SF Position Integrity Checker",
+        "version": VERSION,
+        "run_timestamp": datetime.datetime.now().isoformat(timespec="seconds"),
+        "tenant_url": _mask_tenant_url(tenant_url) if tenant_url else "",
+        "country": country,
+        "as_of_date": (as_of_date or datetime.date.today()).isoformat(),
+        "positions_checked": total_positions,
+        "total_issues": len(issues),
         "hidden_issues_count": hidden_n,
-        "critical_issues":    critical_n,
-        "high_issues":        high_n,
-        "checks_run":         checks_run,
-        "checks_disabled":    checks_disabled,
+        "critical_issues": critical_n,
+        "high_issues": high_n,
+        "checks_run": checks_run,
+        "checks_disabled": checks_disabled,
     }
 
     with open(path, "w", encoding="utf-8") as f:
@@ -750,6 +776,7 @@ def write_run_manifest(
 # ---------------------------------------------------------------------------
 # Master write function
 # ---------------------------------------------------------------------------
+
 
 def write_report_meta(country: str, instance_id: str) -> None:
     """Write a per-report sidecar <stem>.meta.json so the web UI can show
@@ -768,13 +795,29 @@ def write_all_reports(
     country: str = "CA",
     tenant_url: str = "",
     instance_id: str = "",
-  as_of_date: datetime.date | None = None,
+    as_of_date: datetime.date | None = None,
 ) -> None:
     print(f"\n[REPORT] Writing output files to ./{OUTPUT_DIR}/")
     visible = _visible_issues(issues)
     write_csv(visible, country)
-    write_excel(visible, total_positions, country, tenant_url=tenant_url, instance_id=instance_id, as_of_date=as_of_date)
-    write_html(visible, total_positions, country, tenant_url=tenant_url, instance_id=instance_id, as_of_date=as_of_date)
-    write_run_manifest(issues, total_positions, country, tenant_url=tenant_url, as_of_date=as_of_date)
+    write_excel(
+        visible,
+        total_positions,
+        country,
+        tenant_url=tenant_url,
+        instance_id=instance_id,
+        as_of_date=as_of_date,
+    )
+    write_html(
+        visible,
+        total_positions,
+        country,
+        tenant_url=tenant_url,
+        instance_id=instance_id,
+        as_of_date=as_of_date,
+    )
+    write_run_manifest(
+        issues, total_positions, country, tenant_url=tenant_url, as_of_date=as_of_date
+    )
     write_report_meta(country, instance_id)
     print_console_summary(issues, total_positions, country, as_of_date=as_of_date)

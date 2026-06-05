@@ -31,7 +31,11 @@ def _get_with_retry(url: str, entity: str) -> Dict[str, Any]:
         try:
             response = requests.get(
                 url,
-                headers={**get_auth_headers(), "Accept": "application/json", "Content-Type": "application/json"},
+                headers={
+                    **get_auth_headers(),
+                    "Accept": "application/json",
+                    "Content-Type": "application/json",
+                },
                 timeout=60,
             )
 
@@ -73,8 +77,7 @@ def _get_with_retry(url: str, entity: str) -> Dict[str, Any]:
             time.sleep(delay)
 
     raise RuntimeError(
-        f"Failed to fetch {entity} after {len(delays)} attempts. "
-        f"Last error: {last_exc}"
+        f"Failed to fetch {entity} after {len(delays)} attempts. Last error: {last_exc}"
     )
 
 
@@ -104,7 +107,9 @@ def fetch_all(
         if select_fields:
             # OData v2: expanded nav props must also appear in $select to be returned
             if expand_fields:
-                combined = list(select_fields) + [f for f in expand_fields if f not in select_fields]
+                combined = list(select_fields) + [
+                    f for f in expand_fields if f not in select_fields
+                ]
                 params["$select"] = ",".join(combined)
             else:
                 params["$select"] = ",".join(select_fields)

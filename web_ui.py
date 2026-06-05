@@ -203,20 +203,25 @@ def _fail_run(run_id: str, error_message: str) -> None:
         run["message"] = error_message
 
 
-def _run_report_thread(run_id: str, country: str, mode: str, as_of_date_str: str) -> None:
+def _run_report_thread(
+    run_id: str, country: str, mode: str, as_of_date_str: str
+) -> None:
     try:
         database.set_country(country)
         as_of_date = _parse_as_of_date(as_of_date_str)
 
         if mode == "validate_only":
-            _push_progress_event(run_id, {
-                "phase": "validate",
-                "step": "validate",
-                "message": f"Running validation on cached data (as-of {as_of_date.isoformat()})...",
-                "status": "running",
-                "current": 0,
-                "total": None,
-            })
+            _push_progress_event(
+                run_id,
+                {
+                    "phase": "validate",
+                    "step": "validate",
+                    "message": f"Running validation on cached data (as-of {as_of_date.isoformat()})...",
+                    "status": "running",
+                    "current": 0,
+                    "total": None,
+                },
+            )
             _do_validate(country, as_of_date=as_of_date)
             _finalize_run(
                 run_id,
@@ -239,14 +244,17 @@ def _run_report_thread(run_id: str, country: str, mode: str, as_of_date_str: str
             return
 
         if mode == "extract_validate":
-            _push_progress_event(run_id, {
-                "phase": "validate",
-                "step": "validate",
-                "message": f"Running validation on the fresh extract (as-of {as_of_date.isoformat()})...",
-                "status": "running",
-                "current": 0,
-                "total": None,
-            })
+            _push_progress_event(
+                run_id,
+                {
+                    "phase": "validate",
+                    "step": "validate",
+                    "message": f"Running validation on the fresh extract (as-of {as_of_date.isoformat()})...",
+                    "status": "running",
+                    "current": 0,
+                    "total": None,
+                },
+            )
             _do_validate(country, as_of_date=as_of_date)
             status = (
                 f"Extract & Validate complete for {country} (as-of {as_of_date.isoformat()}). "
@@ -260,7 +268,9 @@ def _run_report_thread(run_id: str, country: str, mode: str, as_of_date_str: str
 
         _finalize_run(run_id, status, summary=summary)
     except Exception as exc:
-        error_message = str(exc) or "An unexpected error occurred while running the report."
+        error_message = (
+            str(exc) or "An unexpected error occurred while running the report."
+        )
         _fail_run(run_id, error_message)
         traceback.print_exc()
 
@@ -314,13 +324,21 @@ def auth_config():
             saved = _saved_auth_config()
 
             if not base_url or not username:
-                return jsonify({"error": "Base URL and username are required for Basic Auth."}), 400
+                return jsonify(
+                    {"error": "Base URL and username are required for Basic Auth."}
+                ), 400
             if not password:
                 if not saved.get("password_saved"):
-                    return jsonify({"error": "Password is required for Basic Auth."}), 400
+                    return jsonify(
+                        {"error": "Password is required for Basic Auth."}
+                    ), 400
                 password = os.environ.get("SF_PASSWORD", "")
                 if not password:
-                    return jsonify({"error": "Saved password not available. Please enter it again."}), 400
+                    return jsonify(
+                        {
+                            "error": "Saved password not available. Please enter it again."
+                        }
+                    ), 400
 
             config.set_basic_auth_config(base_url, username, password, company_id)
         else:
@@ -331,7 +349,14 @@ def auth_config():
             token_url = str(payload.get("token_url", "")).strip()
             private_key_path = str(payload.get("private_key_path", "")).strip()
 
-            if not base_url or not client_id or not company_id or not user_id or not token_url or not private_key_path:
+            if (
+                not base_url
+                or not client_id
+                or not company_id
+                or not user_id
+                or not token_url
+                or not private_key_path
+            ):
                 return jsonify({"error": "All OAuth2 fields are required."}), 400
 
             config.set_oauth2_auth_config(
@@ -349,18 +374,39 @@ def auth_config():
     try:
         import requests as _req
         from auth import get_auth_headers
+
         test_url = f"{config.ODATA_BASE_URL}FOCompany?$top=1&$format=json"
         resp = _req.get(test_url, headers=get_auth_headers(), timeout=15)
         if resp.status_code == 401:
-            return jsonify({"error": "Authentication failed - please check your username, password and Company ID."}), 401
+            return jsonify(
+                {
+                    "error": "Authentication failed - please check your username, password and Company ID."
+                }
+            ), 401
         if resp.status_code == 403:
-            return jsonify({"error": "Access denied - credentials saved but the API user may lack permissions."}), 403
+            return jsonify(
+                {
+                    "error": "Access denied - credentials saved but the API user may lack permissions."
+                }
+            ), 403
         if resp.status_code >= 500:
-            return jsonify({"error": f"SF server returned {resp.status_code} - credentials saved but the server may be temporarily unavailable."}), 502
+            return jsonify(
+                {
+                    "error": f"SF server returned {resp.status_code} - credentials saved but the server may be temporarily unavailable."
+                }
+            ), 502
     except Exception as exc:
         conn_err = str(exc)
-        if "Connection" in conn_err or "resolve" in conn_err.lower() or "timeout" in conn_err.lower():
-            return jsonify({"error": f"Could not reach the SF instance - check the Base URL. ({conn_err})"}), 502
+        if (
+            "Connection" in conn_err
+            or "resolve" in conn_err.lower()
+            or "timeout" in conn_err.lower()
+        ):
+            return jsonify(
+                {
+                    "error": f"Could not reach the SF instance - check the Base URL. ({conn_err})"
+                }
+            ), 502
 
     return jsonify({"status": "saved", "auth_method": auth_method})
 
@@ -369,9 +415,19 @@ def auth_config():
 def auth_config_clear():
     try:
         import keyring as _kr
+
         _KEYRING_SERVICE = "sf_position_integrity_checker"
-        for key in ("auth_method", "base_url", "username", "password", "company_id",
-                    "client_id", "user_id", "token_url", "private_key_path"):
+        for key in (
+            "auth_method",
+            "base_url",
+            "username",
+            "password",
+            "company_id",
+            "client_id",
+            "user_id",
+            "token_url",
+            "private_key_path",
+        ):
             try:
                 _kr.delete_password(_KEYRING_SERVICE, key)
             except Exception:
@@ -426,7 +482,9 @@ def _read_manifest_instance(html_filename: str) -> str:
     if not os.path.exists(manifest_path):
         return ""
     try:
-        import json, re
+        import json
+        import re
+
         with open(manifest_path, encoding="utf-8") as f:
             data = json.load(f)
         tenant_url = data.get("tenant_url", "")
@@ -450,6 +508,7 @@ def _read_report_meta_instance(html_filename: str) -> str:
     meta_path = os.path.join(OUTPUT_DIR, f"{stem}.meta.json")
     try:
         import json as _json
+
         with open(meta_path, encoding="utf-8") as f:
             return _json.load(f).get("instance_id", "")
     except Exception:
@@ -467,14 +526,16 @@ def _report_files() -> list[dict]:
             continue
         country, run_date = match.groups()
         instance = _read_report_meta_instance(filename) or _instance_from_config()
-        result.append({
-            "name": filename,
-            "country": country,
-            "run_date": datetime.strptime(run_date, "%Y%m%d").date().isoformat(),
-            "instance": instance,
-            "url": url_for("download_output", filename=filename),
-            "related": _related_outputs(filename),
-        })
+        result.append(
+            {
+                "name": filename,
+                "country": country,
+                "run_date": datetime.strptime(run_date, "%Y%m%d").date().isoformat(),
+                "instance": instance,
+                "url": url_for("download_output", filename=filename),
+                "related": _related_outputs(filename),
+            }
+        )
     return result
 
 
@@ -485,10 +546,12 @@ def _related_outputs(html_filename: str) -> list[dict]:
     for ext in extensions:
         path = os.path.join(OUTPUT_DIR, f"{prefix}{ext}")
         if os.path.exists(path):
-            related.append({
-                "name": os.path.basename(path),
-                "url": url_for("download_output", filename=os.path.basename(path)),
-            })
+            related.append(
+                {
+                    "name": os.path.basename(path),
+                    "url": url_for("download_output", filename=os.path.basename(path)),
+                }
+            )
     return related
 
 
@@ -548,7 +611,9 @@ def index():
     if request.method == "POST":
         form["country"] = request.form.get("country", "").strip().upper()
         form["mode"] = request.form.get("mode", "extract_validate")
-        form["as_of_date"] = request.form.get("as_of_date", date.today().isoformat()).strip()
+        form["as_of_date"] = request.form.get(
+            "as_of_date", date.today().isoformat()
+        ).strip()
 
         if not form["country"]:
             error = "Please choose or enter a country code."
@@ -594,7 +659,10 @@ def index():
             except ValueError:
                 error = "Invalid as-of date. Use YYYY-MM-DD."
             except SystemExit as exc:
-                error = str(exc) or "A required database or validation condition was not met."
+                error = (
+                    str(exc)
+                    or "A required database or validation condition was not met."
+                )
             except Exception:
                 error = (
                     "An unexpected error occurred while running the report. "

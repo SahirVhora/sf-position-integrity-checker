@@ -82,30 +82,43 @@ def _conn() -> sqlite3.Connection:
 # 1. Schema structure tests
 # ---------------------------------------------------------------------------
 
+
 def test_schema_structure():
     print("\n--- 1. Schema structure ---")
     c = _conn()
 
     # Tables that must exist
     expected_tables = {
-        "extract_meta", "positions",
-        "fo_company", "fo_business_unit", "fo_division", "fo_department",
-        "cust_sub_department", "fo_job_code", "fo_job_class_local_can",
-        "fo_cost_center", "fo_location",
-        "fo_division_business_unit", "fo_bu_legal_entity",
-        "fo_cost_center_business_unit", "validation_results",
+        "extract_meta",
+        "positions",
+        "fo_company",
+        "fo_business_unit",
+        "fo_division",
+        "fo_department",
+        "cust_sub_department",
+        "fo_job_code",
+        "fo_job_class_local_can",
+        "fo_cost_center",
+        "fo_location",
+        "fo_division_business_unit",
+        "fo_bu_legal_entity",
+        "fo_cost_center_business_unit",
+        "validation_results",
     }
-    existing = {r[0] for r in c.execute(
-        "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'"
-    )}
+    existing = {
+        r[0]
+        for r in c.execute(
+            "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'"
+        )
+    }
     for t in expected_tables:
         assert_true(f"table '{t}' exists", t in existing)
 
     # Views
     expected_views = {"chk01_failures", "chk03_failures", "chk04_failures"}
-    existing_views = {r[0] for r in c.execute(
-        "SELECT name FROM sqlite_master WHERE type='view'"
-    )}
+    existing_views = {
+        r[0] for r in c.execute("SELECT name FROM sqlite_master WHERE type='view'")
+    }
     for v in expected_views:
         assert_true(f"view '{v}' exists", v in existing_views)
 
@@ -114,7 +127,12 @@ def test_schema_structure():
         "SELECT name FROM sqlite_master WHERE type='index' AND tbl_name='validation_results'"
     ).fetchall()
     idx_names = {r[0] for r in idx_sql}
-    for idx in ("idx_vr_extract", "idx_vr_run_severity", "idx_vr_check_id", "idx_vr_position"):
+    for idx in (
+        "idx_vr_extract",
+        "idx_vr_run_severity",
+        "idx_vr_check_id",
+        "idx_vr_position",
+    ):
         assert_true(f"index '{idx}' exists", idx in idx_names)
 
     # Pipe-sep columns must NOT exist on main tables
@@ -122,34 +140,61 @@ def test_schema_structure():
         cols = [r[1] for r in c.execute(f"PRAGMA table_info({table})")]
         return col in cols
 
-    assert_true("fo_business_unit has NO cust_legalEntity column",
-                not col_exists("fo_business_unit", "cust_legalEntity"))
-    assert_true("fo_division has NO cust_BusinessUnit column",
-                not col_exists("fo_division", "cust_BusinessUnit"))
-    assert_true("fo_cost_center has NO cust_BusinessUnit column",
-                not col_exists("fo_cost_center", "cust_BusinessUnit"))
+    assert_true(
+        "fo_business_unit has NO cust_legalEntity column",
+        not col_exists("fo_business_unit", "cust_legalEntity"),
+    )
+    assert_true(
+        "fo_division has NO cust_BusinessUnit column",
+        not col_exists("fo_division", "cust_BusinessUnit"),
+    )
+    assert_true(
+        "fo_cost_center has NO cust_BusinessUnit column",
+        not col_exists("fo_cost_center", "cust_BusinessUnit"),
+    )
 
     # cust_sub_department must use standard column names
-    assert_true("cust_sub_department has 'startDate'",
-                col_exists("cust_sub_department", "startDate"))
-    assert_true("cust_sub_department has 'endDate'",
-                col_exists("cust_sub_department", "endDate"))
-    assert_true("cust_sub_department has 'status'",
-                col_exists("cust_sub_department", "status"))
-    assert_true("cust_sub_department has NO 'effectiveStartDate'",
-                not col_exists("cust_sub_department", "effectiveStartDate"))
-    assert_true("cust_sub_department has NO 'mdfSystemStatus'",
-                not col_exists("cust_sub_department", "mdfSystemStatus"))
+    assert_true(
+        "cust_sub_department has 'startDate'",
+        col_exists("cust_sub_department", "startDate"),
+    )
+    assert_true(
+        "cust_sub_department has 'endDate'",
+        col_exists("cust_sub_department", "endDate"),
+    )
+    assert_true(
+        "cust_sub_department has 'status'", col_exists("cust_sub_department", "status")
+    )
+    assert_true(
+        "cust_sub_department has NO 'effectiveStartDate'",
+        not col_exists("cust_sub_department", "effectiveStartDate"),
+    )
+    assert_true(
+        "cust_sub_department has NO 'mdfSystemStatus'",
+        not col_exists("cust_sub_department", "mdfSystemStatus"),
+    )
 
     # validation_results must NOT have stale snapshot columns
-    for removed_col in ("company", "businessUnit", "division", "department",
-                        "cust_subDepartment", "jobCode", "costCenter", "location"):
-        assert_true(f"validation_results has NO '{removed_col}'",
-                    not col_exists("validation_results", removed_col))
+    for removed_col in (
+        "company",
+        "businessUnit",
+        "division",
+        "department",
+        "cust_subDepartment",
+        "jobCode",
+        "costCenter",
+        "location",
+    ):
+        assert_true(
+            f"validation_results has NO '{removed_col}'",
+            not col_exists("validation_results", removed_col),
+        )
 
     # validation_results must have new columns
-    assert_true("validation_results has 'extract_meta_id'",
-                col_exists("validation_results", "extract_meta_id"))
+    assert_true(
+        "validation_results has 'extract_meta_id'",
+        col_exists("validation_results", "extract_meta_id"),
+    )
 
     c.close()
 
@@ -158,16 +203,20 @@ def test_schema_structure():
 # 2. CHECK constraint tests
 # ---------------------------------------------------------------------------
 
+
 def test_check_constraints():
     print("\n--- 2. CHECK constraints ---")
 
     # extract_complete must be 0 or 1
     c = _conn()
-    assert_raises("extract_complete=2 violates CHECK", sqlite3.IntegrityError,
+    assert_raises(
+        "extract_complete=2 violates CHECK",
+        sqlite3.IntegrityError,
         lambda: c.execute(
             "INSERT INTO extract_meta (run_timestamp,country,extract_complete) VALUES (?,?,?)",
-            ("2024-01-01T00:00:00", "CAN", 2)
-        ))
+            ("2024-01-01T00:00:00", "CAN", 2),
+        ),
+    )
     c.close()
 
     # severity must be in allowed values - first insert a valid extract_meta to satisfy FK
@@ -178,22 +227,34 @@ def test_check_constraints():
     )
     meta_id = c.execute("SELECT last_insert_rowid()").fetchone()[0]
     c.commit()
-    assert_raises("severity='BAD' violates CHECK", sqlite3.IntegrityError,
+    assert_raises(
+        "severity='BAD' violates CHECK",
+        sqlite3.IntegrityError,
         lambda: c.execute(
             "INSERT INTO validation_results "
             "(extract_meta_id,run_timestamp,position_code,check_id,check_category,"
             "failed_field,issue_description,severity) VALUES (?,?,?,?,?,?,?,?)",
-            (meta_id, "2024-01-01T00:00:00", "P001", "CHK-01",
-             "Hierarchy Alignment", "department", "desc", "INVALID")
-        ))
+            (
+                meta_id,
+                "2024-01-01T00:00:00",
+                "P001",
+                "CHK-01",
+                "Hierarchy Alignment",
+                "department",
+                "desc",
+                "INVALID",
+            ),
+        ),
+    )
     c.close()
 
     # positions code='' violates CHECK(length(code)>0)
     c = _conn()
-    assert_raises("positions code='' violates CHECK", sqlite3.IntegrityError,
-        lambda: c.execute(
-            "INSERT INTO positions (code) VALUES ('')"
-        ))
+    assert_raises(
+        "positions code='' violates CHECK",
+        sqlite3.IntegrityError,
+        lambda: c.execute("INSERT INTO positions (code) VALUES ('')"),
+    )
     c.close()
 
     _ok("CHECK constraints enforce data integrity")
@@ -203,16 +264,17 @@ def test_check_constraints():
 # 3. Date normalisation
 # ---------------------------------------------------------------------------
 
+
 def test_date_normalisation():
     print("\n--- 3. Date normalisation ---")
 
     cases = [
-        ("/Date(1609459200000)/",  "2021-01-01"),   # positive epoch
-        ("/Date(-2208988800000)/", "1900-01-01"),   # negative epoch (pre-1970)
-        ("2024-03-15T00:00:00",    "2024-03-15"),   # ISO datetime truncated
-        ("2024-03-15",             "2024-03-15"),   # already ISO date
-        ("",                       ""),              # empty passthrough
-        (None,                     None),            # None passthrough
+        ("/Date(1609459200000)/", "2021-01-01"),  # positive epoch
+        ("/Date(-2208988800000)/", "1900-01-01"),  # negative epoch (pre-1970)
+        ("2024-03-15T00:00:00", "2024-03-15"),  # ISO datetime truncated
+        ("2024-03-15", "2024-03-15"),  # already ISO date
+        ("", ""),  # empty passthrough
+        (None, None),  # None passthrough
     ]
     for raw, expected in cases:
         result = db.normalise_date(raw) if raw is not None else db.normalise_date(raw)
@@ -221,23 +283,41 @@ def test_date_normalisation():
     # Verify dates are normalised when saved via save_foundation (goes through _bulk_insert)
     # 1609459200000 ms = 2021-01-01T00:00:00Z
     # 1735689600000 ms = 2025-01-01T00:00:00Z
-    db.save_foundation("fo_location", [{
-        "externalCode": "LOC-DATETEST",
-        "startDate":    "/Date(1609459200000)/",
-        "endDate":      "/Date(1735689600000)/",
-        "status":       "A",
-        "description":  "Date Normalisation Test",
-    }])
+    db.save_foundation(
+        "fo_location",
+        [
+            {
+                "externalCode": "LOC-DATETEST",
+                "startDate": "/Date(1609459200000)/",
+                "endDate": "/Date(1735689600000)/",
+                "status": "A",
+                "description": "Date Normalisation Test",
+            }
+        ],
+    )
     c = _conn()
-    row = dict(c.execute("SELECT startDate, endDate FROM fo_location WHERE externalCode='LOC-DATETEST'").fetchone())
+    row = dict(
+        c.execute(
+            "SELECT startDate, endDate FROM fo_location WHERE externalCode='LOC-DATETEST'"
+        ).fetchone()
+    )
     c.close()
-    assert_eq("epoch-millis startDate normalised to ISO via save_foundation", row["startDate"], "2021-01-01")
-    assert_eq("epoch-millis endDate normalised to ISO via save_foundation", row["endDate"], "2025-01-01")
+    assert_eq(
+        "epoch-millis startDate normalised to ISO via save_foundation",
+        row["startDate"],
+        "2021-01-01",
+    )
+    assert_eq(
+        "epoch-millis endDate normalised to ISO via save_foundation",
+        row["endDate"],
+        "2025-01-01",
+    )
 
 
 # ---------------------------------------------------------------------------
 # 4. Junction table population and set-based lookups
 # ---------------------------------------------------------------------------
+
 
 def _insert_synthetic_data(c: sqlite3.Connection) -> None:
     """Insert a minimal set of foundation data for validation tests."""
@@ -249,7 +329,7 @@ def _insert_synthetic_data(c: sqlite3.Connection) -> None:
         [
             ("LE-001", "2020-01-01", "9999-12-31", "A", "Legal Entity 001", "CAN"),
             ("LE-002", "2020-01-01", "9999-12-31", "A", "Legal Entity 002", "CAN"),
-        ]
+        ],
     )
 
     # Business units (no cust_legalEntity column - use junction table)
@@ -259,7 +339,7 @@ def _insert_synthetic_data(c: sqlite3.Connection) -> None:
         [
             ("BU-001", "2020-01-01", "9999-12-31", "A", "Business Unit 001"),
             ("BU-002", "2020-01-01", "9999-12-31", "A", "Business Unit 002"),
-        ]
+        ],
     )
 
     # Divisions (no cust_BusinessUnit column - use junction table)
@@ -268,7 +348,7 @@ def _insert_synthetic_data(c: sqlite3.Connection) -> None:
         "VALUES (?,?,?,?,?)",
         [
             ("DIV-001", "2020-01-01", "9999-12-31", "A", "Division 001"),
-        ]
+        ],
     )
 
     # Departments
@@ -277,7 +357,7 @@ def _insert_synthetic_data(c: sqlite3.Connection) -> None:
         "VALUES (?,?,?,?,?,?)",
         [
             ("DEPT-001", "2020-01-01", "9999-12-31", "A", "Department 001", "DIV-001"),
-        ]
+        ],
     )
 
     # Sub-departments (standard column names)
@@ -287,7 +367,7 @@ def _insert_synthetic_data(c: sqlite3.Connection) -> None:
         "VALUES (?,?,?,?,?,?)",
         [
             ("SD-001", "2020-01-01", "9999-12-31", "A", "Sub Dept 001", "DEPT-001"),
-        ]
+        ],
     )
 
     # Job codes
@@ -296,9 +376,18 @@ def _insert_synthetic_data(c: sqlite3.Connection) -> None:
         "(externalCode, startDate, endDate, status, name_en_US, jobFunction, cust_jobsubfunction, grade, cust_careerPath) "
         "VALUES (?,?,?,?,?,?,?,?,?)",
         [
-            ("JC-001", "2020-01-01", "9999-12-31", "A", "Job Code 001",
-             "JF-001", "JSF-001", "G5", "CP-001"),
-        ]
+            (
+                "JC-001",
+                "2020-01-01",
+                "9999-12-31",
+                "A",
+                "Job Code 001",
+                "JF-001",
+                "JSF-001",
+                "G5",
+                "CP-001",
+            ),
+        ],
     )
 
     # Cost centres (no cust_BusinessUnit column - use junction table)
@@ -307,7 +396,7 @@ def _insert_synthetic_data(c: sqlite3.Connection) -> None:
         "VALUES (?,?,?,?,?)",
         [
             ("CC-001", "2020-01-01", "9999-12-31", "A", "Cost Centre 001"),
-        ]
+        ],
     )
 
     # Locations
@@ -316,20 +405,35 @@ def _insert_synthetic_data(c: sqlite3.Connection) -> None:
         "VALUES (?,?,?,?,?)",
         [
             ("LOC-001", "2020-01-01", "9999-12-31", "A", "Toronto HQ"),
-        ]
+        ],
     )
 
     # Junction tables
     # BU-001 → LE-001 (only)
-    c.execute("INSERT OR REPLACE INTO fo_bu_legal_entity VALUES (?,?)", ("BU-001", "LE-001"))
+    c.execute(
+        "INSERT OR REPLACE INTO fo_bu_legal_entity VALUES (?,?)", ("BU-001", "LE-001")
+    )
     # BU-002 → LE-001 AND LE-002
-    c.execute("INSERT OR REPLACE INTO fo_bu_legal_entity VALUES (?,?)", ("BU-002", "LE-001"))
-    c.execute("INSERT OR REPLACE INTO fo_bu_legal_entity VALUES (?,?)", ("BU-002", "LE-002"))
+    c.execute(
+        "INSERT OR REPLACE INTO fo_bu_legal_entity VALUES (?,?)", ("BU-002", "LE-001")
+    )
+    c.execute(
+        "INSERT OR REPLACE INTO fo_bu_legal_entity VALUES (?,?)", ("BU-002", "LE-002")
+    )
     # DIV-001 → BU-001 AND BU-002 (multi-BU division)
-    c.execute("INSERT OR REPLACE INTO fo_division_business_unit VALUES (?,?)", ("DIV-001", "BU-001"))
-    c.execute("INSERT OR REPLACE INTO fo_division_business_unit VALUES (?,?)", ("DIV-001", "BU-002"))
+    c.execute(
+        "INSERT OR REPLACE INTO fo_division_business_unit VALUES (?,?)",
+        ("DIV-001", "BU-001"),
+    )
+    c.execute(
+        "INSERT OR REPLACE INTO fo_division_business_unit VALUES (?,?)",
+        ("DIV-001", "BU-002"),
+    )
     # CC-001 → BU-001
-    c.execute("INSERT OR REPLACE INTO fo_cost_center_business_unit VALUES (?,?)", ("CC-001", "BU-001"))
+    c.execute(
+        "INSERT OR REPLACE INTO fo_cost_center_business_unit VALUES (?,?)",
+        ("CC-001", "BU-001"),
+    )
 
     c.commit()
 
@@ -343,47 +447,54 @@ def test_junction_tables():
     lookups = build_lookups_from_db()
 
     # div_to_bus
-    assert_eq("DIV-001 maps to {BU-001, BU-002}",
-              lookups["div_to_bus"].get("DIV-001"), {"BU-001", "BU-002"})
-    assert_eq("missing division maps to None", lookups["div_to_bus"].get("DIV-999"), None)
+    assert_eq(
+        "DIV-001 maps to {BU-001, BU-002}",
+        lookups["div_to_bus"].get("DIV-001"),
+        {"BU-001", "BU-002"},
+    )
+    assert_eq(
+        "missing division maps to None", lookups["div_to_bus"].get("DIV-999"), None
+    )
 
     # bu_to_les
-    assert_eq("BU-001 maps to {LE-001}",
-              lookups["bu_to_les"].get("BU-001"), {"LE-001"})
-    assert_eq("BU-002 maps to {LE-001, LE-002}",
-              lookups["bu_to_les"].get("BU-002"), {"LE-001", "LE-002"})
+    assert_eq("BU-001 maps to {LE-001}", lookups["bu_to_les"].get("BU-001"), {"LE-001"})
+    assert_eq(
+        "BU-002 maps to {LE-001, LE-002}",
+        lookups["bu_to_les"].get("BU-002"),
+        {"LE-001", "LE-002"},
+    )
 
     # cc_to_bus
-    assert_eq("CC-001 maps to {BU-001}",
-              lookups["cc_to_bus"].get("CC-001"), {"BU-001"})
+    assert_eq("CC-001 maps to {BU-001}", lookups["cc_to_bus"].get("CC-001"), {"BU-001"})
 
 
 # ---------------------------------------------------------------------------
 # 5. Integrity check logic (pass + fail cases)
 # ---------------------------------------------------------------------------
 
+
 def _make_position(**kwargs):
     """Build a minimal valid position dict, overrideable via kwargs."""
     defaults = {
-        "code":                "P-001",
-        "externalName_en_US":  "Test Position",
-        "effectiveStartDate":  "2024-01-01",
-        "effectiveEndDate":    "9999-12-31",
-        "effectiveStatus":     "A",
-        "company":             "LE-001",
-        "businessUnit":        "BU-001",
-        "division":            "DIV-001",
-        "department":          "DEPT-001",
-        "cust_subDepartment":  "SD-001",
-        "jobCode":             "JC-001",
-        "costCenter":          "CC-001",
-        "location":            "LOC-001",
-        "cust_Country":        "CAN",
-        "cust_JobFunction":    "JF-001",
+        "code": "P-001",
+        "externalName_en_US": "Test Position",
+        "effectiveStartDate": "2024-01-01",
+        "effectiveEndDate": "9999-12-31",
+        "effectiveStatus": "A",
+        "company": "LE-001",
+        "businessUnit": "BU-001",
+        "division": "DIV-001",
+        "department": "DEPT-001",
+        "cust_subDepartment": "SD-001",
+        "jobCode": "JC-001",
+        "costCenter": "CC-001",
+        "location": "LOC-001",
+        "cust_Country": "CAN",
+        "cust_JobFunction": "JF-001",
         "cust_jobSubFunction": "JSF-001",
         "cust_GlobalJobLevel": "G5",
-        "cust_CareerPath":     "CP-001",
-        "payGrade":            "",
+        "cust_CareerPath": "CP-001",
+        "payGrade": "",
     }
     defaults.update(kwargs)
     return defaults
@@ -398,24 +509,21 @@ def test_check_logic():
     assert_eq("valid position → 0 issues", len(issues), 0)
 
     # CHK-01: subdept maps to wrong department
-    issues = validate_positions(
-        [_make_position(department="DEPT-WRONG")], lookups
-    )
+    issues = validate_positions([_make_position(department="DEPT-WRONG")], lookups)
     chk09 = [i for i in issues if i["Check ID"] == "CHK-01"]
     assert_true("CHK-01 fires when subdept dept mismatch", len(chk09) == 1)
     assert_eq("CHK-01 severity", chk09[0]["Severity"], "CRITICAL")
 
     # CHK-01: skipped when subdept not in lookup
     issues = validate_positions(
-        [_make_position(cust_subDepartment="SD-UNKNOWN", department="DEPT-001")], lookups
+        [_make_position(cust_subDepartment="SD-UNKNOWN", department="DEPT-001")],
+        lookups,
     )
     chk09 = [i for i in issues if i["Check ID"] == "CHK-01"]
     assert_eq("CHK-01 skipped when subdept not in lookup", len(chk09), 0)
 
     # CHK-02: department maps to wrong division
-    issues = validate_positions(
-        [_make_position(division="DIV-WRONG")], lookups
-    )
+    issues = validate_positions([_make_position(division="DIV-WRONG")], lookups)
     chk10 = [i for i in issues if i["Check ID"] == "CHK-02"]
     assert_true("CHK-02 fires when dept division mismatch", len(chk10) == 1)
 
@@ -425,7 +533,9 @@ def test_check_logic():
     assert_eq("CHK-03 passes for BU-001 in DIV-001", len(chk11), 0)
 
     # CHK-03: BU-002 is also allowed for DIV-001 → no issue (multi-BU division)
-    issues = validate_positions([_make_position(businessUnit="BU-002", company="LE-001")], lookups)
+    issues = validate_positions(
+        [_make_position(businessUnit="BU-002", company="LE-001")], lookups
+    )
     chk11 = [i for i in issues if i["Check ID"] == "CHK-03"]
     assert_eq("CHK-03 passes for BU-002 in DIV-001 (multi-BU)", len(chk11), 0)
 
@@ -433,33 +543,46 @@ def test_check_logic():
     issues = validate_positions([_make_position(businessUnit="BU-999")], lookups)
     chk11 = [i for i in issues if i["Check ID"] == "CHK-03"]
     assert_true("CHK-03 fires for BU-999 not in DIV-001", len(chk11) == 1)
-    assert_true("CHK-03 description contains both allowed BUs",
-                "BU-001" in chk11[0]["Issue Description"] and "BU-002" in chk11[0]["Issue Description"])
+    assert_true(
+        "CHK-03 description contains both allowed BUs",
+        "BU-001" in chk11[0]["Issue Description"]
+        and "BU-002" in chk11[0]["Issue Description"],
+    )
 
     # CHK-04: LE-001 is allowed for BU-001 → no issue
-    issues = validate_positions([_make_position(company="LE-001", businessUnit="BU-001")], lookups)
+    issues = validate_positions(
+        [_make_position(company="LE-001", businessUnit="BU-001")], lookups
+    )
     chk12 = [i for i in issues if i["Check ID"] == "CHK-04"]
     assert_eq("CHK-04 passes for LE-001 in BU-001", len(chk12), 0)
 
     # CHK-04: LE-002 is NOT in BU-001 → issue
-    issues = validate_positions([_make_position(company="LE-002", businessUnit="BU-001")], lookups)
+    issues = validate_positions(
+        [_make_position(company="LE-002", businessUnit="BU-001")], lookups
+    )
     chk12 = [i for i in issues if i["Check ID"] == "CHK-04"]
     assert_true("CHK-04 fires for LE-002 not in BU-001", len(chk12) == 1)
 
     # CHK-04: LE-002 IS in BU-002 → no issue
-    issues = validate_positions([_make_position(company="LE-002", businessUnit="BU-002",
-                                                division="DIV-001")], lookups)
+    issues = validate_positions(
+        [_make_position(company="LE-002", businessUnit="BU-002", division="DIV-001")],
+        lookups,
+    )
     chk12 = [i for i in issues if i["Check ID"] == "CHK-04"]
     assert_eq("CHK-04 passes for LE-002 in BU-002 (multi-LE)", len(chk12), 0)
 
     # CHK-05: CC-001 → BU-001 passes
-    issues = validate_positions([_make_position(costCenter="CC-001", businessUnit="BU-001")], lookups)
+    issues = validate_positions(
+        [_make_position(costCenter="CC-001", businessUnit="BU-001")], lookups
+    )
     chk13 = [i for i in issues if i["Check ID"] == "CHK-05"]
     assert_eq("CHK-05 passes for CC-001→BU-001", len(chk13), 0)
 
     # CHK-05: CC-001 → BU-002 fails
-    issues = validate_positions([_make_position(costCenter="CC-001", businessUnit="BU-002",
-                                                company="LE-001")], lookups)
+    issues = validate_positions(
+        [_make_position(costCenter="CC-001", businessUnit="BU-002", company="LE-001")],
+        lookups,
+    )
     chk13 = [i for i in issues if i["Check ID"] == "CHK-05"]
     assert_true("CHK-05 fires for CC-001→BU-002 mismatch", len(chk13) == 1)
 
@@ -483,31 +606,35 @@ def test_check_logic():
 # 6. validation_results save/load with FK
 # ---------------------------------------------------------------------------
 
+
 def test_validation_results_save():
     print("\n--- 6. validation_results save/load ---")
 
     # Insert extract_meta record
     meta_id = db.save_extract_meta("CAN", 1, complete=True)
-    assert_true("save_extract_meta returns int meta_id", isinstance(meta_id, int) and meta_id > 0)
+    assert_true(
+        "save_extract_meta returns int meta_id",
+        isinstance(meta_id, int) and meta_id > 0,
+    )
 
     # Build an issue dict (as produced by validators._issue)
     issue = {
-        "Position ID":          "P-001",
-        "Position Title":       "Test Position",
+        "Position ID": "P-001",
+        "Position Title": "Test Position",
         "Effective Start Date": "2024-01-01",
-        "Legal Entity":         "LE-001",
-        "Business Unit":        "BU-001",
-        "Division":             "DIV-001",
-        "Department":           "DEPT-001",
-        "Sub Department":       "SD-001",
-        "Job Code":             "JC-001",
-        "Cost Centre":          "CC-001",
-        "Location":             "LOC-001",
-        "Check ID":             "CHK-01",
-        "Check Category":       "Hierarchy Alignment",
-        "Failed Field":         "department",
-        "Issue Description":    "Sub Department 'SD-001' belongs to Department 'DEPT-001' ...",
-        "Severity":             "CRITICAL",
+        "Legal Entity": "LE-001",
+        "Business Unit": "BU-001",
+        "Division": "DIV-001",
+        "Department": "DEPT-001",
+        "Sub Department": "SD-001",
+        "Job Code": "JC-001",
+        "Cost Centre": "CC-001",
+        "Location": "LOC-001",
+        "Check ID": "CHK-01",
+        "Check Category": "Hierarchy Alignment",
+        "Failed Field": "department",
+        "Issue Description": "Sub Department 'SD-001' belongs to Department 'DEPT-001' ...",
+        "Severity": "CRITICAL",
     }
 
     db.save_validation_results([issue], "2024-01-01T12:00:00", meta_id)
@@ -522,48 +649,71 @@ def test_validation_results_save():
     assert_eq("extract_meta_id FK set", last["extract_meta_id"], meta_id)
     # Snapshot columns removed - these must NOT be present
     assert_true("company NOT in validation_results row", "company" not in last)
-    assert_true("businessUnit NOT in validation_results row", "businessUnit" not in last)
+    assert_true(
+        "businessUnit NOT in validation_results row", "businessUnit" not in last
+    )
 
     # FK violation: invalid meta_id must be rejected with FK pragma ON
     import sqlite3 as _sql
-    assert_raises("FK violation raises IntegrityError", _sql.IntegrityError,
-        lambda: db.save_validation_results([issue], "2024-01-01T12:00:00", 99999))
+
+    assert_raises(
+        "FK violation raises IntegrityError",
+        _sql.IntegrityError,
+        lambda: db.save_validation_results([issue], "2024-01-01T12:00:00", 99999),
+    )
 
 
 # ---------------------------------------------------------------------------
 # 7. Audit views
 # ---------------------------------------------------------------------------
 
+
 def test_audit_views():
     print("\n--- 7. Audit views ---")
     c = _conn()
 
     # chk01_failures: should find the intentional mismatch (SD-001 → DEPT-001 but position has DEPT-WRONG)
-    c.execute("INSERT OR REPLACE INTO positions (code, cust_subDepartment, department) "
-              "VALUES ('VIEW-TEST-P1', 'SD-001', 'DEPT-WRONG')")
+    c.execute(
+        "INSERT OR REPLACE INTO positions (code, cust_subDepartment, department) "
+        "VALUES ('VIEW-TEST-P1', 'SD-001', 'DEPT-WRONG')"
+    )
     c.commit()
-    rows = c.execute("SELECT * FROM chk01_failures WHERE position_code='VIEW-TEST-P1'").fetchall()
+    rows = c.execute(
+        "SELECT * FROM chk01_failures WHERE position_code='VIEW-TEST-P1'"
+    ).fetchall()
     assert_true("chk01_failures detects SD-001/DEPT-WRONG mismatch", len(rows) == 1)
 
     # chk01_failures: correct position should not appear
-    c.execute("INSERT OR REPLACE INTO positions (code, cust_subDepartment, department) "
-              "VALUES ('VIEW-TEST-P2', 'SD-001', 'DEPT-001')")
+    c.execute(
+        "INSERT OR REPLACE INTO positions (code, cust_subDepartment, department) "
+        "VALUES ('VIEW-TEST-P2', 'SD-001', 'DEPT-001')"
+    )
     c.commit()
-    rows = c.execute("SELECT * FROM chk01_failures WHERE position_code='VIEW-TEST-P2'").fetchall()
+    rows = c.execute(
+        "SELECT * FROM chk01_failures WHERE position_code='VIEW-TEST-P2'"
+    ).fetchall()
     assert_eq("chk01_failures: correct position not flagged", len(rows), 0)
 
     # chk03_failures: BU-999 not in DIV-001
-    c.execute("INSERT OR REPLACE INTO positions (code, division, businessUnit) "
-              "VALUES ('VIEW-TEST-P3', 'DIV-001', 'BU-999')")
+    c.execute(
+        "INSERT OR REPLACE INTO positions (code, division, businessUnit) "
+        "VALUES ('VIEW-TEST-P3', 'DIV-001', 'BU-999')"
+    )
     c.commit()
-    rows = c.execute("SELECT * FROM chk03_failures WHERE position_code='VIEW-TEST-P3'").fetchall()
+    rows = c.execute(
+        "SELECT * FROM chk03_failures WHERE position_code='VIEW-TEST-P3'"
+    ).fetchall()
     assert_true("chk03_failures detects BU-999 not in DIV-001", len(rows) == 1)
 
     # chk04_failures: LE-002 not in BU-001
-    c.execute("INSERT OR REPLACE INTO positions (code, businessUnit, company) "
-              "VALUES ('VIEW-TEST-P4', 'BU-001', 'LE-002')")
+    c.execute(
+        "INSERT OR REPLACE INTO positions (code, businessUnit, company) "
+        "VALUES ('VIEW-TEST-P4', 'BU-001', 'LE-002')"
+    )
     c.commit()
-    rows = c.execute("SELECT * FROM chk04_failures WHERE position_code='VIEW-TEST-P4'").fetchall()
+    rows = c.execute(
+        "SELECT * FROM chk04_failures WHERE position_code='VIEW-TEST-P4'"
+    ).fetchall()
     assert_true("chk04_failures detects LE-002 not in BU-001", len(rows) == 1)
 
     c.close()
@@ -573,21 +723,29 @@ def test_audit_views():
 # 8. save_pipe_sep_junctions directly
 # ---------------------------------------------------------------------------
 
+
 def test_save_pipe_sep_junctions():
     print("\n--- 8. save_pipe_sep_junctions ---")
 
     # Insert a new division and populate its junctions
     c = _conn()
-    c.execute("INSERT OR REPLACE INTO fo_division (externalCode, startDate, endDate, status, description) "
-              "VALUES ('DIV-PIPE', '2020-01-01', '9999-12-31', 'A', 'Pipe Sep Test Division')")
+    c.execute(
+        "INSERT OR REPLACE INTO fo_division (externalCode, startDate, endDate, status, description) "
+        "VALUES ('DIV-PIPE', '2020-01-01', '9999-12-31', 'A', 'Pipe Sep Test Division')"
+    )
     c.commit()
     c.close()
 
     # Simulate what fetchers.py does: record still has raw pipe-sep value
-    records = [{"externalCode": "DIV-PIPE", "cust_BusinessUnit": "BU-001|BU-002|BU-003"}]
+    records = [
+        {"externalCode": "DIV-PIPE", "cust_BusinessUnit": "BU-001|BU-002|BU-003"}
+    ]
     db.save_pipe_sep_junctions(
-        "fo_division_business_unit", "division_code", "bu_code",
-        records, "cust_BusinessUnit",
+        "fo_division_business_unit",
+        "division_code",
+        "bu_code",
+        records,
+        "cust_BusinessUnit",
     )
 
     c = _conn()
@@ -596,13 +754,20 @@ def test_save_pipe_sep_junctions():
     ).fetchall()
     c.close()
     bu_codes = {r[0] for r in rows}
-    assert_eq("pipe-sep '|' produces 3 junction rows", bu_codes, {"BU-001", "BU-002", "BU-003"})
+    assert_eq(
+        "pipe-sep '|' produces 3 junction rows",
+        bu_codes,
+        {"BU-001", "BU-002", "BU-003"},
+    )
 
     # Empty pipe-sep string → no rows inserted
     records_empty = [{"externalCode": "DIV-PIPE", "cust_BusinessUnit": ""}]
     db.save_pipe_sep_junctions(
-        "fo_division_business_unit", "division_code", "bu_code",
-        records_empty, "cust_BusinessUnit",
+        "fo_division_business_unit",
+        "division_code",
+        "bu_code",
+        records_empty,
+        "cust_BusinessUnit",
     )
     # Still 3 rows (empty didn't add more, and INSERT OR REPLACE on existing PK)
     c = _conn()
@@ -616,6 +781,7 @@ def test_save_pipe_sep_junctions():
 # ---------------------------------------------------------------------------
 # Runner
 # ---------------------------------------------------------------------------
+
 
 def main():
     print("=" * 60)
