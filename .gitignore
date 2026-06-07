@@ -11,3 +11,8 @@ __pycache__/
 .claude/
 tmp_debug.py
 tmp_*.py
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
