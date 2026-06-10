@@ -721,6 +721,74 @@ def print_console_summary(
     print(f"  As-of Date        : {(as_of_date or datetime.date.today()).isoformat()}")
 
 
+
+# ---------------------------------------------------------------------------
+# Fix pack
+# ---------------------------------------------------------------------------
+
+ISSUE_OWNERS = {
+    "foundation": "Foundation data owner",
+    "job": "Job architecture owner",
+    "cost": "Finance cost centre owner",
+    "location": "Workplace location owner",
+    "legal": "HR legal entity owner",
+    "employee": "HR operations owner",
+}
+
+
+def _owner_for_issue(issue: Dict[str, Any]) -> str:
+    text = " ".join(
+        str(issue.get(k, "")).lower()
+        for k in ("Check Category", "Failed Field", "Issue Description", "Check ID")
+    )
+    for key, owner in ISSUE_OWNERS.items():
+        if key in text:
+            return owner
+    return "Position data owner"
+
+
+def _fix_action(issue: Dict[str, Any]) -> str:
+    field = issue.get("Failed Field") or "Position field"
+    check_id = issue.get("Check ID") or "rule"
+    return f"Review {field} for {check_id} and update the source position record or related foundation object."
+
+
+def write_fix_pack(issues: List[Dict[str, Any]], country: str = "CA") -> str:
+    """Write suggested correction templates and ownership by issue type."""
+    _ensure_output_dir()
+    path = os.path.join(OUTPUT_DIR, f"position_integrity_fix_pack_{country}_{_datestamp()}.csv")
+    rows = []
+    for issue in _normalise_dates(issues):
+        rows.append(
+            {
+                "Owner": _owner_for_issue(issue),
+                "Issue Type": issue.get("Check ID", ""),
+                "Severity": issue.get("Severity", ""),
+                "Position ID": issue.get("Position ID", ""),
+                "Effective Start Date": issue.get("Effective Start Date", ""),
+                "Failed Field": issue.get("Failed Field", ""),
+                "Current Value": "",
+                "Suggested Correction": "",
+                "Correction Template": _fix_action(issue),
+                "Notes": issue.get("Issue Description", ""),
+            }
+        )
+    df = pd.DataFrame(rows, columns=[
+        "Owner",
+        "Issue Type",
+        "Severity",
+        "Position ID",
+        "Effective Start Date",
+        "Failed Field",
+        "Current Value",
+        "Suggested Correction",
+        "Correction Template",
+        "Notes",
+    ])
+    df.to_csv(path, index=False)
+    print(f"  FIX  -> {path}")
+    return path
+
 # ---------------------------------------------------------------------------
 # Run manifest
 # ---------------------------------------------------------------------------
@@ -764,6 +832,8 @@ def write_run_manifest(
         "high_issues": high_n,
         "checks_run": checks_run,
         "checks_disabled": checks_disabled,
+        "fix_pack": f"position_integrity_fix_pack_{country}_{_datestamp()}.csv",
+        "ownership_model": "Owner is derived from issue category, failed field and rule text.",
     }
 
     with open(path, "w", encoding="utf-8") as f:
@@ -816,6 +886,7 @@ def write_all_reports(
         instance_id=instance_id,
         as_of_date=as_of_date,
     )
+    write_fix_pack(visible, country)
     write_run_manifest(
         issues, total_positions, country, tenant_url=tenant_url, as_of_date=as_of_date
     )
