@@ -442,5 +442,5 @@ One of 10 free, open tools for SAP SuccessFactors consultants. Explore the full 
 Related tools:
 
 - [Config Debt Radar](https://github.com/SahirVhora/sf-config-debt-radar) - Scan EC configuration debt - CLI, dashboard, MCP server
-- [ObjectSync](https://github.com/SahirVhora/SAPSF_ObjectSync) - Sync OM foundation objects PRD to Dev
+- [ObjectSync](https://github.com/SahirVhora/sf-object-sync) - Sync OM foundation objects PRD to Dev
 - [Config Compare](https://github.com/SahirVhora/sf-config-compare) - Compare metadata and picklists across tenants
