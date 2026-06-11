@@ -7,12 +7,13 @@ Run this frontend from the repository root, then open http://127.0.0.1:5000/ in 
 import glob
 import os
 import re
+import secrets
 import threading
 import traceback
 import uuid
 from datetime import date, datetime
 
-from flask import Flask, jsonify, render_template, request, send_from_directory, url_for
+from flask import Flask, abort, jsonify, render_template, request, send_from_directory, session, url_for
 
 import config
 import database
@@ -123,6 +124,27 @@ RUNS_LOCK = threading.Lock()
 MAX_PROGRESS_LOG = 50
 
 app = Flask(__name__, template_folder="templates")
+app.config["SESSION_COOKIE_HTTPONLY"] = True
+app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
+app.config["SESSION_COOKIE_SECURE"] = os.environ.get("HTTPS", "") == "1"
+app.secret_key = os.environ.get("FLASK_SECRET_KEY") or secrets.token_hex(32)
+
+
+def _get_csrf_token():
+    if "csrf_token" not in session:
+        session["csrf_token"] = secrets.token_hex(32)
+    return session["csrf_token"]
+
+
+app.jinja_env.globals["csrf_token"] = _get_csrf_token
+
+
+@app.before_request
+def _check_csrf():
+    if request.method in ("POST", "PUT", "DELETE", "PATCH"):
+        token = request.form.get("csrf_token") or request.headers.get("X-CSRF-Token")
+        if not token or not secrets.compare_digest(token, session.get("csrf_token", "")):
+            abort(403, "CSRF token missing or invalid")
 
 
 def _ensure_output_dir() -> None:
