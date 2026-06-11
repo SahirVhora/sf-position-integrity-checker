@@ -128,6 +128,64 @@ def _instance_name(tenant_url: str, instance_id: str = "") -> str:
 # ---------------------------------------------------------------------------
 
 
+def write_findings_json(
+    issues: List[Dict[str, Any]],
+    total_positions: int,
+    country: str = "CA",
+    tenant_url: str = "",
+    as_of_date: datetime.date | None = None,
+) -> str:
+    """Write findings in the SF Compass suite schema (sf-compass-findings/v1)."""
+    _ensure_output_dir()
+    path = os.path.join(
+        OUTPUT_DIR, f"position_integrity_findings_{country}_{_datestamp()}.json"
+    )
+    normalised = _normalise_dates(issues)
+    findings = []
+    by_severity: Dict[str, int] = {}
+    for issue in normalised:
+        severity = str(issue.get("Severity", "")).strip().lower() or "info"
+        by_severity[severity] = by_severity.get(severity, 0) + 1
+        findings.append(
+            {
+                "id": issue.get("Check ID", ""),
+                "severity": severity,
+                "category": issue.get("Check Category", ""),
+                "object_type": "Position",
+                "object_id": issue.get("Position ID", ""),
+                "field": issue.get("Failed Field", ""),
+                "message": issue.get("Issue Description", ""),
+                "details": {
+                    "legal_entity": issue.get("Legal Entity", ""),
+                    "department": issue.get("Department", ""),
+                    "job_code": issue.get("Job Code", ""),
+                    "effective_start_date": issue.get("Effective Start Date", ""),
+                },
+            }
+        )
+    document = {
+        "schema": "sf-compass-findings/v1",
+        "tool": "sf-position-integrity-checker",
+        "tool_version": VERSION,
+        "generated_at": datetime.datetime.now().isoformat(timespec="seconds"),
+        "tenant": _mask_tenant_url(tenant_url) if tenant_url else "",
+        "scope": {
+            "country": country,
+            "as_of_date": as_of_date.isoformat() if as_of_date else "",
+        },
+        "summary": {
+            "total_records": total_positions,
+            "findings": len(findings),
+            "by_severity": by_severity,
+        },
+        "findings": findings,
+    }
+    with open(path, "w", encoding="utf-8") as fh:
+        json.dump(document, fh, indent=2, ensure_ascii=False)
+    print(f"  JSON -> {path}")
+    return path
+
+
 def write_csv(issues: List[Dict[str, Any]], country: str = "CA") -> str:
     _ensure_output_dir()
     path = os.path.join(OUTPUT_DIR, f"position_integrity_{country}_{_datestamp()}.csv")
@@ -887,6 +945,13 @@ def write_all_reports(
         as_of_date=as_of_date,
     )
     write_fix_pack(visible, country)
+    write_findings_json(
+        visible,
+        total_positions,
+        country,
+        tenant_url=tenant_url,
+        as_of_date=as_of_date,
+    )
     write_run_manifest(
         issues, total_positions, country, tenant_url=tenant_url, as_of_date=as_of_date
     )

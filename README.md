@@ -257,6 +257,7 @@ After each run, the following files are written to `./output/`:
 | **Excel workbook** | Two sheets: *Issues* (colour-coded rows by severity) and *Summary* (run statistics, SF instance, per-check breakdown). |
 | **CSV** | Flat export of all issues - suitable for further analysis or loading into another tool. |
 | **run_manifest.json** | Machine-readable JSON summary of the run - checks executed, issue counts (including `hidden_issues_count` for rules suppressed by `visible: false`), timestamp. Suitable for CI pipelines or audit trails. |
+| **Findings JSON** | All findings in the shared `sf-compass-findings/v1` schema (tool, severity, object, message) so other suite tools and AI agents can consume results without tool-specific parsing. Tenant URL is masked. |
 
 Each report permanently records the SF instance (Company ID) it was run against, so historical reports in the web UI always show the correct instance even after switching tenants.
 
@@ -432,3 +433,14 @@ Start with SF Compass for the full hub: https://sahirvhora.github.io/sf-compass/
 | SF Position Integrity Checker | Position hierarchy, incumbency, and EC data-quality validation |
 | SAPSF ObjectSync | Controlled foundation-object synchronisation between SF environments |
 
+---
+
+## Part of the SF Compass Suite
+
+One of 10 free, open tools for SAP SuccessFactors consultants. Explore the full suite at [SF Compass](https://sahirvhora.github.io/sf-compass/).
+
+Related tools:
+
+- [Config Debt Radar](https://github.com/SahirVhora/sf-config-debt-radar) - Scan EC configuration debt - CLI, dashboard, MCP server
+- [ObjectSync](https://github.com/SahirVhora/SAPSF_ObjectSync) - Sync OM foundation objects PRD to Dev
+- [Config Compare](https://github.com/SahirVhora/sf-config-compare) - Compare metadata and picklists across tenants
