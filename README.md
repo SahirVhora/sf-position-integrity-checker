@@ -102,6 +102,27 @@ Rules are defined in `config/rules.yaml`. Each rule has an `enabled` flag and a 
 
 ---
 
+## MCP Server (AI Agent Integration)
+
+The checker doubles as an MCP server, so any MCP-compatible AI agent (Claude Code, Cursor, Hermes) can run position integrity checks conversationally.
+
+```bash
+pip install -r requirements.txt   # includes mcp
+./run_mcp_server.sh               # stdio transport (default)
+python3 mcp_server.py --transport sse --port 8091   # HTTP/SSE
+```
+
+| Tool | What it does |
+|---|---|
+| `sf_position_checks` | List validation rules CHK-01 to CHK-09 with severity |
+| `sf_validate_positions` | Validate the locally cached extract for a country, returns `sf-compass-findings/v1` JSON |
+| `sf_latest_findings` | Read the newest findings JSON from `./output` |
+| `sf_position_integrity_about` | Server info and data policy |
+
+The MCP server only reads the local SQLite cache written by a prior extract - it never connects to a tenant, so no credentials pass through the agent.
+
+---
+
 ## How it works
 
 ```

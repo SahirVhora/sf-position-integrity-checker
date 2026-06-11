@@ -16,3 +16,4 @@ tmp_*.py
 .ruff_cache/
 .coverage
 htmlcov/
+venv/

@@ -128,18 +128,14 @@ def _instance_name(tenant_url: str, instance_id: str = "") -> str:
 # ---------------------------------------------------------------------------
 
 
-def write_findings_json(
+def build_findings_document(
     issues: List[Dict[str, Any]],
     total_positions: int,
     country: str = "CA",
     tenant_url: str = "",
     as_of_date: datetime.date | None = None,
-) -> str:
-    """Write findings in the SF Compass suite schema (sf-compass-findings/v1)."""
-    _ensure_output_dir()
-    path = os.path.join(
-        OUTPUT_DIR, f"position_integrity_findings_{country}_{_datestamp()}.json"
-    )
+) -> Dict[str, Any]:
+    """Build the SF Compass suite findings document (sf-compass-findings/v1)."""
     normalised = _normalise_dates(issues)
     findings = []
     by_severity: Dict[str, int] = {}
@@ -180,6 +176,24 @@ def write_findings_json(
         },
         "findings": findings,
     }
+    return document
+
+
+def write_findings_json(
+    issues: List[Dict[str, Any]],
+    total_positions: int,
+    country: str = "CA",
+    tenant_url: str = "",
+    as_of_date: datetime.date | None = None,
+) -> str:
+    """Write findings in the SF Compass suite schema (sf-compass-findings/v1)."""
+    _ensure_output_dir()
+    path = os.path.join(
+        OUTPUT_DIR, f"position_integrity_findings_{country}_{_datestamp()}.json"
+    )
+    document = build_findings_document(
+        issues, total_positions, country, tenant_url=tenant_url, as_of_date=as_of_date
+    )
     with open(path, "w", encoding="utf-8") as fh:
         json.dump(document, fh, indent=2, ensure_ascii=False)
     print(f"  JSON -> {path}")
