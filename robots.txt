@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://sahirvhora.github.io/sf-position-integrity-checker/sitemap.xml
