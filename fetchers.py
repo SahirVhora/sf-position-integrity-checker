@@ -19,6 +19,17 @@ from api_client import fetch_all
 ProgressCallback = Callable[[Dict[str, Any]], None]
 
 
+def _odata_escape(value: Any) -> str:
+    """Escape a string literal for an OData v2 $filter.
+
+    OData v2 single-quoted literals escape an embedded quote by doubling it
+    ('' ). Without this, a value containing a single quote breaks the filter
+    syntax (OData injection). Normal SuccessFactors codes are alphanumeric and
+    contain no quotes, so for real data the output is identical to the input.
+    """
+    return str(value).replace("'", "''")
+
+
 # ---------------------------------------------------------------------------
 # Navigation-property normaliser
 # ---------------------------------------------------------------------------
@@ -267,7 +278,7 @@ def fetch_positions(
             "cust_GlobalJobLevel",
             "cust_CareerPath",
         ],
-        filter_expr=f"cust_Country eq '{country_code}' and effectiveStatus eq 'A'",
+        filter_expr=f"cust_Country eq '{_odata_escape(country_code)}' and effectiveStatus eq 'A'",
     )
     target_date = as_of_date or datetime.date.today()
     lookup: Dict[str, Dict] = {}
@@ -407,7 +418,7 @@ def _fetch_by_codes(
     for batch_num in range(1, total_batches + 1):
         start = (batch_num - 1) * _CODE_BATCH_SIZE
         batch = code_list[start : start + _CODE_BATCH_SIZE]
-        code_clause = " or ".join(f"externalCode eq '{c}'" for c in batch)
+        code_clause = " or ".join(f"externalCode eq '{_odata_escape(c)}'" for c in batch)
         filter_expr = (
             f"({code_clause}) and {status_filter}"
             if status_filter
@@ -752,7 +763,7 @@ def _fetch_cust_job_class(
         start_idx = (batch_num - 1) * _CODE_BATCH_SIZE
         batch = code_list[start_idx : start_idx + _CODE_BATCH_SIZE]
         code_clause = " or ".join(
-            f"JobClassification_externalCode eq '{c}'" for c in batch
+            f"JobClassification_externalCode eq '{_odata_escape(c)}'" for c in batch
         )
         print(
             f"\n[7b/9] Fetching {entity} for {len(codes)} unique codes "
@@ -1045,7 +1056,7 @@ def fetch_jobcode_subfunctions(
                 return _parse_jobcode_subfunction_response(data)
 
             def _fetch_via_expand() -> Optional[str]:
-                filter_expr = f"externalCode eq '{jc_code}'"
+                filter_expr = f"externalCode eq '{_odata_escape(jc_code)}'"
                 records = fetch_all(
                     entity="FOJobCode",
                     select_fields=["externalCode", "cust_jobsubfunction"],
@@ -1157,7 +1168,7 @@ def _fetch_picklist_labels(picklist_id: str) -> Dict[str, str]:
         records = fetch_all(
             entity="PickListValueV2",
             select_fields=["externalCode", "lValue", "label_en_US"],
-            filter_expr=f"PickListV2_id eq '{picklist_id}'",
+            filter_expr=f"PickListV2_id eq '{_odata_escape(picklist_id)}'",
         )
         mapping: Dict[str, str] = {}
         for rec in records:
@@ -1228,7 +1239,7 @@ def fetch_empjob_for_positions(
         total_batches = math.ceil(len(code_list) / _CODE_BATCH_SIZE)
 
         def _fetch_batch(batch: List[str]) -> List[Dict]:
-            code_clause = " or ".join(f"position eq '{c}'" for c in batch)
+            code_clause = " or ".join(f"position eq '{_odata_escape(c)}'" for c in batch)
             raw_records = fetch_all(
                 entity="EmpJob",
                 select_fields=[
