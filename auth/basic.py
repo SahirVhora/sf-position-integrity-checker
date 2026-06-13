@@ -102,10 +102,14 @@ def _try_file_creds() -> Tuple[
         return None, None, None, None
 
 
-def resolve_basic_credentials() -> Tuple[str, str, str, str]:
+def resolve_basic_credentials(prompt: bool = True) -> Tuple[str, str, str, str]:
     """
     Resolve (odata_base_url, username, password, company_id) from the first
     available source: .env → keyring → file fallback → interactive prompt.
+
+    If *prompt* is False and no non-interactive source has credentials, returns
+    a tuple of empty strings instead of prompting. This lets `config` resolve
+    credentials at import time without ever blocking on stdin.
 
     Supports both the new env var naming (SF_ODATA_BASE_URL / SF_COMPANY_ID)
     and the legacy naming (SF_BASE_URL / SF_INSTANCE_ID).
@@ -125,6 +129,9 @@ def resolve_basic_credentials() -> Tuple[str, str, str, str]:
     fc_url, fc_user, fc_pass, fc_company = _try_file_creds()
     if fc_url and fc_user and fc_pass:
         return fc_url, fc_user, fc_pass, fc_company or ""
+
+    if not prompt:
+        return "", "", "", ""
 
     return _prompt_credentials()
 

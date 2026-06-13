@@ -59,12 +59,23 @@ ODATA_BASE_URL: str = f"{SF_BASE_URL}/odata/v2/" if SF_BASE_URL else ""
 # ---------------------------------------------------------------------------
 
 
-def _init_basic_auth():
-    """Resolve Basic Auth credentials and populate module-level legacy vars."""
+def _init_basic_auth(prompt: bool = False):
+    """Resolve Basic Auth credentials and populate module-level legacy vars.
+
+    At import time this runs with prompt=False so importing `config` never
+    blocks on an interactive credential prompt (which breaks CI, the MCP
+    server, the web UI, and tests). When no credentials are available from a
+    non-interactive source the legacy vars keep their env-derived defaults and
+    HEADERS stays empty; the real credential resolution (and prompt, if a TTY
+    user runs the CLI) happens lazily at request time via auth.get_auth_headers.
+    """
     from auth.basic import resolve_basic_credentials
     import base64
 
-    raw_url, username, password, company = resolve_basic_credentials()
+    raw_url, username, password, company = resolve_basic_credentials(prompt=prompt)
+    if not (username and password):
+        # No non-interactive credentials found; do not prompt at import time.
+        return
 
     # Normalise URL (same logic as above, in case it was only in keyring/prompt)
     raw_url = raw_url.rstrip("/")
@@ -112,7 +123,8 @@ SF_INSTANCE_ID: str = (
 HEADERS: dict = {}
 
 if AUTH_METHOD == "basic":
-    _init_basic_auth()
+    # prompt=False: never block on interactive input during module import.
+    _init_basic_auth(prompt=False)
 
 # ---------------------------------------------------------------------------
 # Keyring helper (public API - preserved for backward compatibility)

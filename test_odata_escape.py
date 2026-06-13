@@ -14,14 +14,6 @@ import sys
 
 sys.path.insert(0, os.path.dirname(__file__))
 
-# Importing fetchers -> api_client -> config initialises basic auth, which
-# prompts interactively if no credentials are present. Provide dummy env
-# credentials so this offline test imports without a TTY prompt.
-os.environ.setdefault("SF_AUTH_METHOD", "basic")
-os.environ.setdefault("SF_USERNAME", "test_user")
-os.environ.setdefault("SF_PASSWORD", "test_pass")
-os.environ.setdefault("SF_ODATA_BASE_URL", "https://example.invalid")
-
 from fetchers import _odata_escape
 
 
