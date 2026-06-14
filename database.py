@@ -442,6 +442,29 @@ _ISSUE_KEY_MAP = {
     "Severity": "severity",
 }
 
+# Known tables and views for identifier validation
+_KNOWN_TABLES = {
+    *_TABLE_COLS.keys(),
+    "fo_division_business_unit",
+    "fo_bu_legal_entity",
+    "fo_cost_center_business_unit",
+    "extract_meta",
+    "validation_results",
+}
+_KNOWN_VIEWS = {"chk01_failures", "chk03_failures", "chk04_failures"}
+
+
+def _validate_sql_identifier(name: str) -> None:
+    """Verify a string is a safe SQL identifier (alphanumeric + underscore only)."""
+    if not name or not name.replace("_", "").isalnum():
+        raise ValueError(f"Invalid SQL identifier: {name!r}")
+
+
+def _validate_table_name(name: str) -> None:
+    """Verify table/view name is known."""
+    if name not in _KNOWN_TABLES and name not in _KNOWN_VIEWS:
+        raise ValueError(f"Unknown table or view: {name!r}")
+
 
 # ---------------------------------------------------------------------------
 # Connection helpers
@@ -474,12 +497,14 @@ def init_db() -> None:
         "SELECT name FROM sqlite_master WHERE type='view' AND name NOT LIKE 'sqlite_%'"
     )
     for (vname,) in cur.fetchall():
+        _validate_sql_identifier(vname)
         conn.execute(f"DROP VIEW IF EXISTS [{vname}]")
     # Drop all user tables
     cur.execute(
         "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'"
     )
     for (tname,) in cur.fetchall():
+        _validate_sql_identifier(tname)
         conn.execute(f"DROP TABLE IF EXISTS [{tname}]")
     conn.executescript(_SCHEMA_SQL)
     conn.commit()
@@ -564,6 +589,9 @@ def save_pipe_sep_junctions(
                 rows.append((parent_code, code))
     if not rows:
         return
+    _validate_table_name(junction_table)
+    _validate_sql_identifier(parent_col)
+    _validate_sql_identifier(child_col)
     conn = get_connection()
     try:
         conn.executemany(
@@ -603,6 +631,7 @@ def save_validation_results(
 
 def load_table(table_name: str) -> List[Dict[str, Any]]:
     """Load all rows from a table as a list of plain dicts."""
+    _validate_table_name(table_name)
     conn = get_connection(read_only=True)
     cur = conn.execute(f"SELECT * FROM {table_name}")
     rows = [dict(row) for row in cur.fetchall()]
