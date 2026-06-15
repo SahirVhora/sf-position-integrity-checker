@@ -14,6 +14,7 @@ Usage:
     python test_schema.py
 """
 
+import datetime
 import os
 import sys
 import sqlite3
@@ -601,6 +602,98 @@ def test_check_logic():
     chk17 = [i for i in issues if i["Check ID"] == "CHK-08"]
     assert_true("CHK-08 fires when position GJL is blank", len(chk17) == 1)
 
+    # CHK-07: job sub function mismatch
+    issues = validate_positions([_make_position(cust_jobSubFunction="JSF-WRONG")], lookups)
+    chk07 = [i for i in issues if i["Check ID"] == "CHK-07"]
+    assert_true("CHK-07 fires for job sub function mismatch", len(chk07) == 1)
+    assert_eq("CHK-07 severity", chk07[0]["Severity"], "HIGH")
+
+    # CHK-07: passes when job sub function matches
+    issues = validate_positions([_make_position(cust_jobSubFunction="JSF-001")], lookups)
+    chk07 = [i for i in issues if i["Check ID"] == "CHK-07"]
+    assert_eq("CHK-07 passes when job sub function matches", len(chk07), 0)
+
+    # CHK-09: career path mismatch
+    issues = validate_positions([_make_position(cust_CareerPath="CP-WRONG")], lookups)
+    chk09 = [i for i in issues if i["Check ID"] == "CHK-09"]
+    assert_true("CHK-09 fires for career path mismatch", len(chk09) == 1)
+    assert_eq("CHK-09 severity", chk09[0]["Severity"], "HIGH")
+
+    # CHK-09: passes when career path matches
+    issues = validate_positions([_make_position(cust_CareerPath="CP-001")], lookups)
+    chk09 = [i for i in issues if i["Check ID"] == "CHK-09"]
+    assert_eq("CHK-09 passes when career path matches", len(chk09), 0)
+
+
+# ---------------------------------------------------------------------------
+# 5b. Foundation active checks (CHK-10 to CHK-17)
+# ---------------------------------------------------------------------------
+
+def test_foundation_active_checks():
+    print("\n--- 5b. Foundation active checks ---")
+    c = _conn()
+
+    # Insert an inactive company (status=I, ended in past)
+    c.executemany(
+        "INSERT OR REPLACE INTO fo_company (externalCode, startDate, endDate, status, description, country) "
+        "VALUES (?,?,?,?,?,?)",
+        [
+            ("LE-INACTIVE", "2020-01-01", "2020-12-31", "I", "Inactive Entity", "CAN"),
+        ],
+    )
+
+    # Insert an inactive business unit (status=I)
+    c.executemany(
+        "INSERT OR REPLACE INTO fo_business_unit (externalCode, startDate, endDate, status, description) "
+        "VALUES (?,?,?,?,?)",
+        [
+            ("BU-INACTIVE", "2020-01-01", "2020-12-31", "I", "Inactive BU"),
+        ],
+    )
+
+    # Insert a future-dated company (not yet active)
+    c.executemany(
+        "INSERT OR REPLACE INTO fo_company (externalCode, startDate, endDate, status, description, country) "
+        "VALUES (?,?,?,?,?,?)",
+        [
+            ("LE-FUTURE", "2030-01-01", "9999-12-31", "A", "Future Entity", "CAN"),
+        ],
+    )
+
+    c.commit()
+    c.close()
+
+    lookups = build_lookups_from_db()
+    as_of_date = datetime.date(2024, 6, 1)
+
+    # CHK-10: inactive legal entity
+    issues = validate_positions([_make_position(company="LE-INACTIVE")], lookups, as_of_date=as_of_date)
+    chk10 = [i for i in issues if i["Check ID"] == "CHK-10"]
+    assert_true("CHK-10 fires for inactive legal entity", len(chk10) == 1)
+    assert_eq("CHK-10 severity", chk10[0]["Severity"], "CRITICAL")
+    assert_true("CHK-10 description mentions inactive status", "not active" in chk10[0]["Issue Description"].lower())
+
+    # CHK-10: future-dated legal entity (not active as-of today)
+    issues = validate_positions([_make_position(company="LE-FUTURE")], lookups, as_of_date=as_of_date)
+    chk10 = [i for i in issues if i["Check ID"] == "CHK-10"]
+    assert_true("CHK-10 fires for future-dated legal entity", len(chk10) == 1)
+
+    # CHK-10: passes for active legal entity
+    issues = validate_positions([_make_position(company="LE-001")], lookups, as_of_date=as_of_date)
+    chk10 = [i for i in issues if i["Check ID"] == "CHK-10"]
+    assert_eq("CHK-10 passes for active legal entity", len(chk10), 0)
+
+    # CHK-11: inactive business unit
+    issues = validate_positions([_make_position(businessUnit="BU-INACTIVE")], lookups, as_of_date=as_of_date)
+    chk11 = [i for i in issues if i["Check ID"] == "CHK-11"]
+    assert_true("CHK-11 fires for inactive business unit", len(chk11) == 1)
+    assert_eq("CHK-11 severity", chk11[0]["Severity"], "CRITICAL")
+
+    # CHK-11: passes for active business unit
+    issues = validate_positions([_make_position(businessUnit="BU-001")], lookups, as_of_date=as_of_date)
+    chk11 = [i for i in issues if i["Check ID"] == "CHK-11"]
+    assert_eq("CHK-11 passes for active business unit", len(chk11), 0)
+
 
 # ---------------------------------------------------------------------------
 # 6. validation_results save/load with FK
@@ -797,6 +890,7 @@ def main():
     test_date_normalisation()
     test_junction_tables()
     test_check_logic()
+    test_foundation_active_checks()
     test_validation_results_save()
     test_audit_views()
     test_save_pipe_sep_junctions()
