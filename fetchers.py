@@ -418,7 +418,9 @@ def _fetch_by_codes(
     for batch_num in range(1, total_batches + 1):
         start = (batch_num - 1) * _CODE_BATCH_SIZE
         batch = code_list[start : start + _CODE_BATCH_SIZE]
-        code_clause = " or ".join(f"externalCode eq '{_odata_escape(c)}'" for c in batch)
+        code_clause = " or ".join(
+            f"externalCode eq '{_odata_escape(c)}'" for c in batch
+        )
         filter_expr = (
             f"({code_clause}) and {status_filter}"
             if status_filter
@@ -1239,7 +1241,9 @@ def fetch_empjob_for_positions(
         total_batches = math.ceil(len(code_list) / _CODE_BATCH_SIZE)
 
         def _fetch_batch(batch: List[str]) -> List[Dict]:
-            code_clause = " or ".join(f"position eq '{_odata_escape(c)}'" for c in batch)
+            code_clause = " or ".join(
+                f"position eq '{_odata_escape(c)}'" for c in batch
+            )
             raw_records = fetch_all(
                 entity="EmpJob",
                 select_fields=[

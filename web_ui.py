@@ -13,7 +13,16 @@ import traceback
 import uuid
 from datetime import date, datetime
 
-from flask import Flask, abort, jsonify, render_template, request, send_from_directory, session, url_for
+from flask import (
+    Flask,
+    abort,
+    jsonify,
+    render_template,
+    request,
+    send_from_directory,
+    session,
+    url_for,
+)
 
 import config
 import database
@@ -143,7 +152,9 @@ app.jinja_env.globals["csrf_token"] = _get_csrf_token
 def _check_csrf():
     if request.method in ("POST", "PUT", "DELETE", "PATCH"):
         token = request.form.get("csrf_token") or request.headers.get("X-CSRF-Token")
-        if not token or not secrets.compare_digest(token, session.get("csrf_token", "")):
+        if not token or not secrets.compare_digest(
+            token, session.get("csrf_token", "")
+        ):
             abort(403, "CSRF token missing or invalid")
 
 

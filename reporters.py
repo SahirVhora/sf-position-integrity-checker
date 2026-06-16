@@ -793,7 +793,6 @@ def print_console_summary(
     print(f"  As-of Date        : {(as_of_date or datetime.date.today()).isoformat()}")
 
 
-
 # ---------------------------------------------------------------------------
 # Fix pack
 # ---------------------------------------------------------------------------
@@ -828,7 +827,9 @@ def _fix_action(issue: Dict[str, Any]) -> str:
 def write_fix_pack(issues: List[Dict[str, Any]], country: str = "CA") -> str:
     """Write suggested correction templates and ownership by issue type."""
     _ensure_output_dir()
-    path = os.path.join(OUTPUT_DIR, f"position_integrity_fix_pack_{country}_{_datestamp()}.csv")
+    path = os.path.join(
+        OUTPUT_DIR, f"position_integrity_fix_pack_{country}_{_datestamp()}.csv"
+    )
     rows = []
     for issue in _normalise_dates(issues):
         rows.append(
@@ -845,21 +846,25 @@ def write_fix_pack(issues: List[Dict[str, Any]], country: str = "CA") -> str:
                 "Notes": issue.get("Issue Description", ""),
             }
         )
-    df = pd.DataFrame(rows, columns=[
-        "Owner",
-        "Issue Type",
-        "Severity",
-        "Position ID",
-        "Effective Start Date",
-        "Failed Field",
-        "Current Value",
-        "Suggested Correction",
-        "Correction Template",
-        "Notes",
-    ])
+    df = pd.DataFrame(
+        rows,
+        columns=[
+            "Owner",
+            "Issue Type",
+            "Severity",
+            "Position ID",
+            "Effective Start Date",
+            "Failed Field",
+            "Current Value",
+            "Suggested Correction",
+            "Correction Template",
+            "Notes",
+        ],
+    )
     df.to_csv(path, index=False)
     print(f"  FIX  -> {path}")
     return path
+
 
 # ---------------------------------------------------------------------------
 # Run manifest
