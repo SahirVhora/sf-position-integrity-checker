@@ -53,7 +53,7 @@ mcp = FastMCP(
 )
 def position_checks_tool() -> str:
     """Return all validation rules with their configuration."""
-    from validators import CHECK_META, _ALL_RULES
+    from validators import _ALL_RULES
 
     rules = [
         {

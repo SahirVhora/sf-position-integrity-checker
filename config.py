@@ -154,7 +154,11 @@ def _save_file_creds(data: dict) -> None:
 
 
 def get_saved_auth_config() -> dict:
-    """Return the currently saved auth configuration for display in the web UI."""
+    """Return the currently saved auth configuration for display in the web UI.
+
+    Reads from OS keyring (with file-based fallback when keyring is unavailable)
+    so credentials set via the web UI are visible on the next page load.
+    """
     file_creds = _load_file_creds()
 
     try:
@@ -238,7 +242,11 @@ def get_saved_auth_config() -> dict:
 def set_basic_auth_config(
     base_url: str, username: str, password: str, company_id: str
 ) -> None:
-    """Save Basic Auth credentials and update module-level globals for the running process."""
+    """Save Basic Auth credentials and update module-level globals for the running process.
+
+    Stores in OS keyring (with file-based fallback when keyring is unavailable)
+    so the web UI can read them back via get_saved_auth_config() on the next load.
+    """
     keyring_ok = False
     try:
         import keyring as _kr
@@ -265,15 +273,15 @@ def set_basic_auth_config(
         )
         _save_file_creds(existing)
 
-    # Override os.environ so resolve_basic_credentials() picks these up immediately
-    # even if a .env file was loaded at startup with different values.
-    os.environ["SF_ODATA_BASE_URL"] = base_url
-    os.environ["SF_USERNAME"] = username
-    os.environ["SF_PASSWORD"] = password
-    os.environ["SF_COMPANY_ID"] = company_id or ""
-
-    # Re-initialise module-level globals so the current process uses the new creds.
-    _init_basic_auth()
+    # Also persist to .env so the credentials survive process restarts
+    # and are visible to the env-var-based get_saved_auth_config() reader.
+    _write_env_var("SF_AUTH_METHOD", "basic")
+    _write_env_var("SF_ODATA_BASE_URL", base_url)
+    _write_env_var("SF_USERNAME", username)
+    _write_env_var("SF_PASSWORD", password)
+    if company_id:
+        _write_env_var("SF_COMPANY_ID", company_id)
+    refresh_config()
 
 
 def set_oauth2_auth_config(
@@ -284,7 +292,11 @@ def set_oauth2_auth_config(
     private_key_path: str,
     base_url: str,
 ) -> None:
-    """Save OAuth2 credentials and update module-level globals for the running process."""
+    """Save OAuth2 credentials and update module-level globals for the running process.
+
+    Stores in OS keyring (with file-based fallback when keyring is unavailable)
+    so the web UI can read them back via get_saved_auth_config() on the next load.
+    """
     keyring_ok = False
     try:
         import keyring as _kr
@@ -315,27 +327,17 @@ def set_oauth2_auth_config(
         )
         _save_file_creds(existing)
 
-    os.environ["SF_AUTH_METHOD"] = "oauth2"
-    os.environ["SF_CLIENT_ID"] = client_id
-    os.environ["SF_COMPANY_ID"] = company_id
-    os.environ["SF_USER_ID"] = user_id
-    os.environ["SF_TOKEN_URL"] = token_url
-    os.environ["SF_PRIVATE_KEY_PATH"] = private_key_path
-
-    raw_url = base_url.rstrip("/")
-    if raw_url.endswith("/odata/v2"):
-        raw_url = raw_url[: -len("/odata/v2")]
-
-    global AUTH_METHOD, OAUTH2_CLIENT_ID, OAUTH2_COMPANY_ID, OAUTH2_USER_ID  # noqa: PLW0603
-    global OAUTH2_TOKEN_URL, OAUTH2_PRIVATE_KEY_PATH, SF_BASE_URL, ODATA_BASE_URL  # noqa: PLW0603
-    AUTH_METHOD = "oauth2"
-    OAUTH2_CLIENT_ID = client_id
-    OAUTH2_COMPANY_ID = company_id
-    OAUTH2_USER_ID = user_id
-    OAUTH2_TOKEN_URL = token_url
-    OAUTH2_PRIVATE_KEY_PATH = private_key_path
-    SF_BASE_URL = raw_url
-    ODATA_BASE_URL = f"{raw_url}/odata/v2/" if raw_url else ""
+    # Also persist to .env so the credentials survive process restarts
+    # and are visible to the env-var-based get_saved_auth_config() reader.
+    _write_env_var("SF_AUTH_METHOD", "oauth2")
+    _write_env_var("SF_CLIENT_ID", client_id)
+    _write_env_var("SF_COMPANY_ID", company_id)
+    _write_env_var("SF_USER_ID", user_id)
+    _write_env_var("SF_TOKEN_URL", token_url)
+    _write_env_var("SF_PRIVATE_KEY_PATH", private_key_path)
+    if base_url:
+        _write_env_var("SF_ODATA_BASE_URL", base_url)
+    refresh_config()
 
 
 def store_credentials_to_keyring(
@@ -442,69 +444,6 @@ def refresh_config() -> None:
             os.environ.get("SF_COMPANY_ID") or os.environ.get("SF_INSTANCE_ID") or ""
         )
         HEADERS = {}
-
-
-def get_saved_auth_config() -> dict:
-    method = os.getenv("SF_AUTH_METHOD", AUTH_METHOD).lower().strip()
-    auth_config = {
-        "auth_method": method,
-        "base_url": os.getenv("SF_ODATA_BASE_URL") or os.getenv("SF_BASE_URL") or "",
-    }
-    if method == "basic":
-        auth_config.update(
-            {
-                "username": os.getenv("SF_USERNAME", ""),
-                "company_id": os.getenv("SF_COMPANY_ID")
-                or os.getenv("SF_INSTANCE_ID", ""),
-                "password_saved": bool(os.getenv("SF_PASSWORD", "")),
-            }
-        )
-    else:
-        auth_config.update(
-            {
-                "client_id": os.getenv("SF_CLIENT_ID", ""),
-                "company_id": os.getenv("SF_COMPANY_ID", ""),
-                "user_id": os.getenv("SF_USER_ID", ""),
-                "token_url": os.getenv("SF_TOKEN_URL", ""),
-                "private_key_path": os.getenv("SF_PRIVATE_KEY_PATH", ""),
-                "password_saved": False,
-            }
-        )
-    return auth_config
-
-
-def set_basic_auth_config(
-    base_url: str,
-    username: str,
-    password: str,
-    company_id: str = "",
-) -> None:
-    _write_env_var("SF_AUTH_METHOD", "basic")
-    _write_env_var("SF_ODATA_BASE_URL", base_url)
-    _write_env_var("SF_USERNAME", username)
-    if company_id:
-        _write_env_var("SF_COMPANY_ID", company_id)
-    _write_env_var("SF_PASSWORD", password)
-    refresh_config()
-
-
-def set_oauth2_auth_config(
-    client_id: str,
-    company_id: str,
-    user_id: str,
-    token_url: str,
-    private_key_path: str,
-    base_url: str = "",
-) -> None:
-    _write_env_var("SF_AUTH_METHOD", "oauth2")
-    _write_env_var("SF_CLIENT_ID", client_id)
-    _write_env_var("SF_COMPANY_ID", company_id)
-    _write_env_var("SF_USER_ID", user_id)
-    _write_env_var("SF_TOKEN_URL", token_url)
-    _write_env_var("SF_PRIVATE_KEY_PATH", private_key_path)
-    if base_url:
-        _write_env_var("SF_ODATA_BASE_URL", base_url)
-    refresh_config()
 
 
 # ---------------------------------------------------------------------------

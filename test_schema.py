@@ -660,6 +660,70 @@ def test_foundation_active_checks():
         ],
     )
 
+    # Insert an inactive division, department, sub department, job code,
+    # cost centre, and location. The CHK-12..16 tests below need them.
+    c.executemany(
+        "INSERT OR REPLACE INTO fo_division (externalCode, startDate, endDate, status, description) "
+        "VALUES (?,?,?,?,?)",
+        [
+            ("DIV-INACTIVE", "2020-01-01", "2020-12-31", "I", "Inactive Division"),
+        ],
+    )
+    c.executemany(
+        "INSERT OR REPLACE INTO fo_department (externalCode, startDate, endDate, status, description, cust_Division) "
+        "VALUES (?,?,?,?,?,?)",
+        [
+            ("DEPT-INACTIVE", "2020-01-01", "2020-12-31", "I", "Inactive Department", "DIV-001"),
+        ],
+    )
+    c.executemany(
+        "INSERT OR REPLACE INTO cust_sub_department (externalCode, startDate, endDate, status, externalName_en_US, cust_Department) "
+        "VALUES (?,?,?,?,?,?)",
+        [
+            ("SD-INACTIVE", "2020-01-01", "2020-12-31", "I", "Inactive Sub Dept", "DEPT-001"),
+        ],
+    )
+    c.executemany(
+        "INSERT OR REPLACE INTO fo_job_code (externalCode, startDate, endDate, status, name_en_US, jobFunction, cust_jobsubfunction, grade, cust_careerPath) "
+        "VALUES (?,?,?,?,?,?,?,?,?)",
+        [
+            ("JC-INACTIVE", "2020-01-01", "2020-12-31", "I", "Inactive Job Code", "JF-001", "JSF-001", "GJL-001", "CP-001"),
+        ],
+    )
+    c.executemany(
+        "INSERT OR REPLACE INTO fo_cost_center (externalCode, startDate, endDate, status, description) "
+        "VALUES (?,?,?,?,?)",
+        [
+            ("CC-INACTIVE", "2020-01-01", "2020-12-31", "I", "Inactive Cost Centre"),
+        ],
+    )
+    c.executemany(
+        "INSERT OR REPLACE INTO fo_location (externalCode, startDate, endDate, status, description) "
+        "VALUES (?,?,?,?,?)",
+        [
+            ("LOC-INACTIVE", "2020-01-01", "2020-12-31", "I", "Inactive Location"),
+        ],
+    )
+
+    # Boundary cases for CHK-10 - entity whose endDate == as_of_date should
+    # NOT be active on the run date (end-of-day semantics). Insert one to
+    # confirm the boundary is handled correctly.
+    c.executemany(
+        "INSERT OR REPLACE INTO fo_company (externalCode, startDate, endDate, status, description, country) "
+        "VALUES (?,?,?,?,?,?)",
+        [
+            ("LE-END-ON-ASOF", "2020-01-01", "2024-06-01", "A", "Ends on as_of date", "CAN"),
+        ],
+    )
+    # Entity whose startDate == as_of_date SHOULD be active (start-of-day).
+    c.executemany(
+        "INSERT OR REPLACE INTO fo_company (externalCode, startDate, endDate, status, description, country) "
+        "VALUES (?,?,?,?,?,?)",
+        [
+            ("LE-START-ON-ASOF", "2024-06-01", "9999-12-31", "A", "Starts on as_of date", "CAN"),
+        ],
+    )
+
     c.commit()
     c.close()
 
@@ -683,6 +747,34 @@ def test_foundation_active_checks():
     chk10 = [i for i in issues if i["Check ID"] == "CHK-10"]
     assert_eq("CHK-10 passes for active legal entity", len(chk10), 0)
 
+    # CHK-10: boundary - the validator uses inclusive comparison
+    # (startDate <= as_of_date <= endDate) which means an entity ending on
+    # the as_of_date is still considered active. Documenting this here so
+    # the behaviour is intentional rather than accidental.
+    issues = validate_positions([_make_position(company="LE-END-ON-ASOF")], lookups, as_of_date=as_of_date)
+    chk10 = [i for i in issues if i["Check ID"] == "CHK-10"]
+    assert_eq("CHK-10 inclusive endDate: entity ending on as_of_date IS active", len(chk10), 0)
+
+    # CHK-10: boundary - endDate one day BEFORE as_of_date is NOT active.
+    # Inserting a fresh entity to keep the test self-contained.
+    c = _conn()
+    c.execute(
+        "INSERT OR REPLACE INTO fo_company (externalCode, startDate, endDate, status, description, country) "
+        "VALUES (?,?,?,?,?,?)",
+        ("LE-ENDED-YESTERDAY", "2020-01-01", "2024-05-31", "A", "Ended day before as_of", "CAN"),
+    )
+    c.commit()
+    c.close()
+    lookups = build_lookups_from_db()
+    issues = validate_positions([_make_position(company="LE-ENDED-YESTERDAY")], lookups, as_of_date=as_of_date)
+    chk10 = [i for i in issues if i["Check ID"] == "CHK-10"]
+    assert_true("CHK-10 fires when endDate is one day before as_of_date", len(chk10) == 1)
+
+    # CHK-10: boundary - startDate == as_of_date IS active (start-of-day)
+    issues = validate_positions([_make_position(company="LE-START-ON-ASOF")], lookups, as_of_date=as_of_date)
+    chk10 = [i for i in issues if i["Check ID"] == "CHK-10"]
+    assert_eq("CHK-10 passes when startDate == as_of_date (start-of-day boundary)", len(chk10), 0)
+
     # CHK-11: inactive business unit
     issues = validate_positions([_make_position(businessUnit="BU-INACTIVE")], lookups, as_of_date=as_of_date)
     chk11 = [i for i in issues if i["Check ID"] == "CHK-11"]
@@ -693,6 +785,72 @@ def test_foundation_active_checks():
     issues = validate_positions([_make_position(businessUnit="BU-001")], lookups, as_of_date=as_of_date)
     chk11 = [i for i in issues if i["Check ID"] == "CHK-11"]
     assert_eq("CHK-11 passes for active business unit", len(chk11), 0)
+
+    # CHK-12: inactive division
+    issues = validate_positions([_make_position(division="DIV-INACTIVE")], lookups, as_of_date=as_of_date)
+    chk12 = [i for i in issues if i["Check ID"] == "CHK-12"]
+    assert_true("CHK-12 fires for inactive division", len(chk12) == 1)
+    assert_eq("CHK-12 severity", chk12[0]["Severity"], "CRITICAL")
+
+    # CHK-12: passes for active division
+    issues = validate_positions([_make_position(division="DIV-001")], lookups, as_of_date=as_of_date)
+    chk12 = [i for i in issues if i["Check ID"] == "CHK-12"]
+    assert_eq("CHK-12 passes for active division", len(chk12), 0)
+
+    # CHK-13: inactive department
+    issues = validate_positions([_make_position(department="DEPT-INACTIVE")], lookups, as_of_date=as_of_date)
+    chk13 = [i for i in issues if i["Check ID"] == "CHK-13"]
+    assert_true("CHK-13 fires for inactive department", len(chk13) == 1)
+    assert_eq("CHK-13 severity", chk13[0]["Severity"], "CRITICAL")
+
+    # CHK-13: passes for active department
+    issues = validate_positions([_make_position(department="DEPT-001")], lookups, as_of_date=as_of_date)
+    chk13 = [i for i in issues if i["Check ID"] == "CHK-13"]
+    assert_eq("CHK-13 passes for active department", len(chk13), 0)
+
+    # CHK-14: inactive sub department
+    issues = validate_positions([_make_position(cust_subDepartment="SD-INACTIVE")], lookups, as_of_date=as_of_date)
+    chk14 = [i for i in issues if i["Check ID"] == "CHK-14"]
+    assert_true("CHK-14 fires for inactive sub department", len(chk14) == 1)
+    assert_eq("CHK-14 severity", chk14[0]["Severity"], "CRITICAL")
+
+    # CHK-14: passes for active sub department
+    issues = validate_positions([_make_position(cust_subDepartment="SD-001")], lookups, as_of_date=as_of_date)
+    chk14 = [i for i in issues if i["Check ID"] == "CHK-14"]
+    assert_eq("CHK-14 passes for active sub department", len(chk14), 0)
+
+    # CHK-15: inactive job code
+    issues = validate_positions([_make_position(jobCode="JC-INACTIVE")], lookups, as_of_date=as_of_date)
+    chk15 = [i for i in issues if i["Check ID"] == "CHK-15"]
+    assert_true("CHK-15 fires for inactive job code", len(chk15) == 1)
+    assert_eq("CHK-15 severity", chk15[0]["Severity"], "CRITICAL")
+
+    # CHK-15: passes for active job code
+    issues = validate_positions([_make_position(jobCode="JC-001")], lookups, as_of_date=as_of_date)
+    chk15 = [i for i in issues if i["Check ID"] == "CHK-15"]
+    assert_eq("CHK-15 passes for active job code", len(chk15), 0)
+
+    # CHK-16: inactive cost centre
+    issues = validate_positions([_make_position(costCenter="CC-INACTIVE")], lookups, as_of_date=as_of_date)
+    chk16 = [i for i in issues if i["Check ID"] == "CHK-16"]
+    assert_true("CHK-16 fires for inactive cost centre", len(chk16) == 1)
+    assert_eq("CHK-16 severity", chk16[0]["Severity"], "CRITICAL")
+
+    # CHK-16: passes for active cost centre
+    issues = validate_positions([_make_position(costCenter="CC-001")], lookups, as_of_date=as_of_date)
+    chk16 = [i for i in issues if i["Check ID"] == "CHK-16"]
+    assert_eq("CHK-16 passes for active cost centre", len(chk16), 0)
+
+    # CHK-17: inactive location
+    issues = validate_positions([_make_position(location="LOC-INACTIVE")], lookups, as_of_date=as_of_date)
+    chk17 = [i for i in issues if i["Check ID"] == "CHK-17"]
+    assert_true("CHK-17 fires for inactive location", len(chk17) == 1)
+    assert_eq("CHK-17 severity", chk17[0]["Severity"], "CRITICAL")
+
+    # CHK-17: passes for active location
+    issues = validate_positions([_make_position(location="LOC-001")], lookups, as_of_date=as_of_date)
+    chk17 = [i for i in issues if i["Check ID"] == "CHK-17"]
+    assert_eq("CHK-17 passes for active location", len(chk17), 0)
 
 
 # ---------------------------------------------------------------------------
