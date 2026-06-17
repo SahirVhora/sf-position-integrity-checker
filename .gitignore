@@ -17,3 +17,4 @@ tmp_*.py
 .coverage
 htmlcov/
 venv/
+.secrets.json
