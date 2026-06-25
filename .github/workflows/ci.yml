@@ -39,4 +39,4 @@ jobs:
         continue-on-error: true
 
       - name: Run schema tests
-        run: python test_schema.py
+        run: python3 -m pytest -q
