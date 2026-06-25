@@ -53,6 +53,7 @@ def _get_with_retry(url: str, entity: str) -> Dict[str, Any]:
                     f"  [WARN] Server error {response.status_code} on {entity} "
                     f"(attempt {attempt}/{len(delays)}), retrying in {delay}s..."
                 )
+                last_exc = RuntimeError(f"HTTP {response.status_code} from {entity}")
                 time.sleep(delay)
                 continue
 
