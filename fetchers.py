@@ -1051,7 +1051,7 @@ def fetch_jobcode_subfunctions(
                 start_key = _sf_date_to_odata_key(rec.get("startDate"))
                 url = (
                     f"{config.ODATA_BASE_URL}FOJobCode"
-                    f"(externalCode='{jc_code}',startDate={start_key})"
+                    f"(externalCode='{_odata_escape(jc_code)}',startDate={start_key})"
                     f"/cust_jobsubfunction?$format=json"
                 )
                 data = _get_with_retry(url, f"cust_jobsubfunction/{jc_code}")
