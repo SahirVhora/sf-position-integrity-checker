@@ -312,9 +312,7 @@ def run_query(sql: str) -> None:
                 widths[i] = max(widths[i], len(str(v) if v is not None else "NULL"))
         # Print
         sep = "+-" + "-+-".join("-" * w for w in widths) + "-+"
-        header = (
-            "| " + " | ".join(c.ljust(widths[i]) for i, c in enumerate(cols)) + " |"
-        )
+        header = "| " + " | ".join(c.ljust(widths[i]) for i, c in enumerate(cols)) + " |"
         print(sep)
         print(header)
         print(sep)
@@ -322,8 +320,7 @@ def run_query(sql: str) -> None:
             line = (
                 "| "
                 + " | ".join(
-                    str(v if v is not None else "NULL").ljust(widths[i])
-                    for i, v in enumerate(row)
+                    str(v if v is not None else "NULL").ljust(widths[i]) for i, v in enumerate(row)
                 )
                 + " |"
             )

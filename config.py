@@ -95,13 +95,7 @@ def _init_basic_auth(prompt: bool = False):
     )
     encoded = base64.b64encode(credential_str.encode("utf-8")).decode("utf-8")
 
-    global \
-        SF_USERNAME, \
-        SF_PASSWORD, \
-        SF_INSTANCE_ID, \
-        HEADERS, \
-        SF_BASE_URL, \
-        ODATA_BASE_URL
+    global SF_USERNAME, SF_PASSWORD, SF_INSTANCE_ID, HEADERS, SF_BASE_URL, ODATA_BASE_URL
     SF_USERNAME = username
     SF_PASSWORD = password
     SF_INSTANCE_ID = instance_id
@@ -118,9 +112,7 @@ def _init_basic_auth(prompt: bool = False):
 # Provide sensible defaults so importing modules don't fail at import time
 SF_USERNAME: str = os.environ.get("SF_USERNAME", "")
 SF_PASSWORD: str = os.environ.get("SF_PASSWORD", "")
-SF_INSTANCE_ID: str = (
-    os.environ.get("SF_COMPANY_ID") or os.environ.get("SF_INSTANCE_ID") or ""
-)
+SF_INSTANCE_ID: str = os.environ.get("SF_COMPANY_ID") or os.environ.get("SF_INSTANCE_ID") or ""
 HEADERS: dict = {}
 
 if AUTH_METHOD == "basic":
@@ -189,9 +181,7 @@ def get_saved_auth_config() -> dict:
             or ""
         )
         password = (
-            _kr.get_password(_KEYRING_SERVICE, "password")
-            or file_creds.get("password")
-            or ""
+            _kr.get_password(_KEYRING_SERVICE, "password") or file_creds.get("password") or ""
         )
         client_id = (
             _kr.get_password(_KEYRING_SERVICE, "client_id")
@@ -240,9 +230,7 @@ def get_saved_auth_config() -> dict:
     }
 
 
-def set_basic_auth_config(
-    base_url: str, username: str, password: str, company_id: str
-) -> None:
+def set_basic_auth_config(base_url: str, username: str, password: str, company_id: str) -> None:
     """Save Basic Auth credentials and update module-level globals for the running process.
 
     Stores in OS keyring (with file-based fallback when keyring is unavailable)
@@ -341,9 +329,7 @@ def set_oauth2_auth_config(
     refresh_config()
 
 
-def store_credentials_to_keyring(
-    url=None, username=None, password=None, company_id=None
-) -> None:
+def store_credentials_to_keyring(url=None, username=None, password=None, company_id=None) -> None:
     """
     Store SF API credentials in the OS keyring.
 
@@ -410,19 +396,11 @@ def _write_env_var(key: str, value: str) -> None:
 def refresh_config() -> None:
     global AUTH_METHOD, OAUTH2_CLIENT_ID, OAUTH2_COMPANY_ID, OAUTH2_USER_ID
     global OAUTH2_TOKEN_URL, OAUTH2_PRIVATE_KEY_PATH
-    global \
-        SF_BASE_URL, \
-        ODATA_BASE_URL, \
-        SF_USERNAME, \
-        SF_PASSWORD, \
-        SF_INSTANCE_ID, \
-        HEADERS
+    global SF_BASE_URL, ODATA_BASE_URL, SF_USERNAME, SF_PASSWORD, SF_INSTANCE_ID, HEADERS
 
     AUTH_METHOD = os.getenv("SF_AUTH_METHOD", AUTH_METHOD).lower().strip()
     if AUTH_METHOD not in ("basic", "oauth2"):
-        raise ValueError(
-            f"SF_AUTH_METHOD must be 'basic' or 'oauth2', got '{AUTH_METHOD}'"
-        )
+        raise ValueError(f"SF_AUTH_METHOD must be 'basic' or 'oauth2', got '{AUTH_METHOD}'")
 
     if AUTH_METHOD == "basic":
         _init_basic_auth()
@@ -432,9 +410,7 @@ def refresh_config() -> None:
         OAUTH2_USER_ID = os.getenv("SF_USER_ID", "")
         OAUTH2_TOKEN_URL = os.getenv("SF_TOKEN_URL", "")
         OAUTH2_PRIVATE_KEY_PATH = os.getenv("SF_PRIVATE_KEY_PATH", "")
-        raw_url = (
-            os.environ.get("SF_ODATA_BASE_URL") or os.environ.get("SF_BASE_URL") or ""
-        )
+        raw_url = os.environ.get("SF_ODATA_BASE_URL") or os.environ.get("SF_BASE_URL") or ""
         raw_url = raw_url.rstrip("/")
         if raw_url.endswith("/odata/v2"):
             raw_url = raw_url[: -len("/odata/v2")]
@@ -442,9 +418,7 @@ def refresh_config() -> None:
         ODATA_BASE_URL = f"{SF_BASE_URL}/odata/v2/" if SF_BASE_URL else ""
         SF_USERNAME = os.environ.get("SF_USERNAME", "")
         SF_PASSWORD = os.environ.get("SF_PASSWORD", "")
-        SF_INSTANCE_ID = (
-            os.environ.get("SF_COMPANY_ID") or os.environ.get("SF_INSTANCE_ID") or ""
-        )
+        SF_INSTANCE_ID = os.environ.get("SF_COMPANY_ID") or os.environ.get("SF_INSTANCE_ID") or ""
         HEADERS = {}
 
 

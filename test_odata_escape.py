@@ -35,9 +35,7 @@ def test_injection_attempt_neutralised():
 def test_batch_clause_still_valid():
     batch = ["A", "O'Hara", "B"]
     clause = " or ".join(f"externalCode eq '{_odata_escape(c)}'" for c in batch)
-    assert clause == (
-        "externalCode eq 'A' or externalCode eq 'O''Hara' or externalCode eq 'B'"
-    )
+    assert clause == ("externalCode eq 'A' or externalCode eq 'O''Hara' or externalCode eq 'B'")
 
 
 def test_non_string_coerced():

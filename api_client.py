@@ -47,6 +47,7 @@ def _build_url(entity: str, params: dict[str, str]) -> str:
     Preserved for backward compatibility. New code should use SFClient directly.
     """
     from urllib.parse import urlencode
+
     params["$format"] = "json"
     query_string = urlencode(params, safe="$,'() ")
     return f"{config.ODATA_BASE_URL}{entity}?{query_string}"
@@ -66,16 +67,11 @@ def _get_with_retry(url: str, entity: str) -> dict[str, Any]:
     except SFClientError as exc:
         if exc.status_code == 401:
             raise RuntimeError(
-                "Authentication failed - check SF_INSTANCE_ID, SF_USERNAME "
-                "and SF_PASSWORD in .env"
+                "Authentication failed - check SF_INSTANCE_ID, SF_USERNAME and SF_PASSWORD in .env"
             ) from exc
         if exc.status_code == 403:
-            raise RuntimeError(
-                f"Access denied on {entity} - check API user permissions"
-            ) from exc
-        raise RuntimeError(
-            f"Failed to fetch {entity}: {exc}"
-        ) from exc
+            raise RuntimeError(f"Access denied on {entity} - check API user permissions") from exc
+        raise RuntimeError(f"Failed to fetch {entity}: {exc}") from exc
 
 
 def fetch_all(
@@ -105,13 +101,7 @@ def fetch_all(
         return records
     except SFClientError as exc:
         if exc.status_code == 401:
-            raise RuntimeError(
-                "Authentication failed - check SF credentials in .env"
-            ) from exc
+            raise RuntimeError("Authentication failed - check SF credentials in .env") from exc
         if exc.status_code == 403:
-            raise RuntimeError(
-                f"Access denied on {entity} - check API user permissions"
-            ) from exc
-        raise RuntimeError(
-            f"Failed to fetch {entity}: {exc}"
-        ) from exc
+            raise RuntimeError(f"Access denied on {entity} - check API user permissions") from exc
+        raise RuntimeError(f"Failed to fetch {entity}: {exc}") from exc

@@ -33,9 +33,7 @@ def _prompt_credentials() -> tuple[str, str, str, str]:
 
     print("\n[CONFIG] No credentials found in .env or keyring.")
     print("         Please enter your SF API credentials:\n")
-    url = input(
-        "  SF OData base URL (e.g. https://api4.successfactors.com/odata/v2/): "
-    ).strip()
+    url = input("  SF OData base URL (e.g. https://api4.successfactors.com/odata/v2/): ").strip()
     username = input("  SF Username: ").strip()
     password = getpass.getpass("  SF Password: ")
     company = input("  Company ID (leave blank if embedded in username): ").strip()
@@ -57,9 +55,7 @@ def _prompt_credentials() -> tuple[str, str, str, str]:
         if not saved:
             import json
 
-            creds_file = os.path.join(
-                os.path.dirname(__file__), "..", "config", "credentials.json"
-            )
+            creds_file = os.path.join(os.path.dirname(__file__), "..", "config", "credentials.json")
             try:
                 os.makedirs(os.path.dirname(creds_file), exist_ok=True)
                 with open(creds_file, "w", encoding="utf-8") as f:
@@ -80,15 +76,11 @@ def _prompt_credentials() -> tuple[str, str, str, str]:
     return url, username, password, company
 
 
-def _try_file_creds() -> tuple[
-    str | None, str | None, str | None, str | None
-]:
+def _try_file_creds() -> tuple[str | None, str | None, str | None, str | None]:
     """Try to load credentials from the file-based fallback."""
     import json
 
-    creds_file = os.path.join(
-        os.path.dirname(__file__), "..", "config", "credentials.json"
-    )
+    creds_file = os.path.join(os.path.dirname(__file__), "..", "config", "credentials.json")
     try:
         with open(creds_file, encoding="utf-8") as f:
             data = json.load(f)
@@ -147,9 +139,7 @@ def get_basic_auth_headers() -> dict:
         company_id = username.split("@")[-1]
 
     credential_str = (
-        f"{base_username}@{company_id}:{password}"
-        if company_id
-        else f"{base_username}:{password}"
+        f"{base_username}@{company_id}:{password}" if company_id else f"{base_username}:{password}"
     )
     encoded = base64.b64encode(credential_str.encode("utf-8")).decode("utf-8")
     return {"Authorization": f"Basic {encoded}"}

@@ -151,9 +151,7 @@ app.jinja_env.globals["csrf_token"] = _get_csrf_token
 def _check_csrf():
     if request.method in ("POST", "PUT", "DELETE", "PATCH"):
         token = request.form.get("csrf_token") or request.headers.get("X-CSRF-Token")
-        if not token or not secrets.compare_digest(
-            token, session.get("csrf_token", "")
-        ):
+        if not token or not secrets.compare_digest(token, session.get("csrf_token", "")):
             abort(403, "CSRF token missing or invalid")
 
 
@@ -235,9 +233,7 @@ def _fail_run(run_id: str, error_message: str) -> None:
         run["message"] = error_message
 
 
-def _run_report_thread(
-    run_id: str, country: str, mode: str, as_of_date_str: str
-) -> None:
+def _run_report_thread(run_id: str, country: str, mode: str, as_of_date_str: str) -> None:
     try:
         database.set_country(country)
         as_of_date = _parse_as_of_date(as_of_date_str)
@@ -300,9 +296,7 @@ def _run_report_thread(
 
         _finalize_run(run_id, status, summary=summary)
     except Exception as exc:
-        error_message = (
-            str(exc) or "An unexpected error occurred while running the report."
-        )
+        error_message = str(exc) or "An unexpected error occurred while running the report."
         _fail_run(run_id, error_message)
         traceback.print_exc()
 
@@ -356,20 +350,14 @@ def auth_config():
             saved = _saved_auth_config()
 
             if not base_url or not username:
-                return jsonify(
-                    {"error": "Base URL and username are required for Basic Auth."}
-                ), 400
+                return jsonify({"error": "Base URL and username are required for Basic Auth."}), 400
             if not password:
                 if not saved.get("password_saved"):
-                    return jsonify(
-                        {"error": "Password is required for Basic Auth."}
-                    ), 400
+                    return jsonify({"error": "Password is required for Basic Auth."}), 400
                 password = os.environ.get("SF_PASSWORD", "")
                 if not password:
                     return jsonify(
-                        {
-                            "error": "Saved password not available. Please enter it again."
-                        }
+                        {"error": "Saved password not available. Please enter it again."}
                     ), 400
 
             config.set_basic_auth_config(base_url, username, password, company_id)
@@ -435,9 +423,7 @@ def auth_config():
             or "timeout" in conn_err.lower()
         ):
             return jsonify(
-                {
-                    "error": f"Could not reach the SF instance - check the Base URL. ({conn_err})"
-                }
+                {"error": f"Could not reach the SF instance - check the Base URL. ({conn_err})"}
             ), 502
 
     return jsonify({"status": "saved", "auth_method": auth_method})
@@ -643,9 +629,7 @@ def index():
     if request.method == "POST":
         form["country"] = request.form.get("country", "").strip().upper()
         form["mode"] = request.form.get("mode", "extract_validate")
-        form["as_of_date"] = request.form.get(
-            "as_of_date", date.today().isoformat()
-        ).strip()
+        form["as_of_date"] = request.form.get("as_of_date", date.today().isoformat()).strip()
 
         if not form["country"]:
             error = "Please choose or enter a country code."
@@ -691,10 +675,7 @@ def index():
             except ValueError:
                 error = "Invalid as-of date. Use YYYY-MM-DD."
             except SystemExit as exc:
-                error = (
-                    str(exc)
-                    or "A required database or validation condition was not met."
-                )
+                error = str(exc) or "A required database or validation condition was not met."
             except Exception:
                 error = (
                     "An unexpected error occurred while running the report. "

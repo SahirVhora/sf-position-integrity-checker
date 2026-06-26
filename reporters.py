@@ -92,11 +92,7 @@ def _visible_issues(issues: list[dict[str, Any]]) -> list[dict[str, Any]]:
     """Return only issues whose rule has visible: true (default)."""
     from validators import CHECK_META
 
-    return [
-        i
-        for i in issues
-        if CHECK_META.get(i.get("Check ID", ""), {}).get("visible", True)
-    ]
+    return [i for i in issues if CHECK_META.get(i.get("Check ID", ""), {}).get("visible", True)]
 
 
 def _df_from_issues(issues: list[dict[str, Any]]) -> pd.DataFrame:
@@ -188,9 +184,7 @@ def write_findings_json(
 ) -> str:
     """Write findings in the SF Compass suite schema (sf-compass-findings/v1)."""
     _ensure_output_dir()
-    path = os.path.join(
-        OUTPUT_DIR, f"position_integrity_findings_{country}_{_datestamp()}.json"
-    )
+    path = os.path.join(OUTPUT_DIR, f"position_integrity_findings_{country}_{_datestamp()}.json")
     document = build_findings_document(
         issues, total_positions, country, tenant_url=tenant_url, as_of_date=as_of_date
     )
@@ -331,9 +325,7 @@ def _build_summary_sheet(
     label_value(11, "HIGH Issues:", high_count)
 
     # Check breakdown table header (shifted down by 1 to accommodate instance row)
-    for col_idx, label in enumerate(
-        ["Check ID", "Description", "Severity", "Count"], start=1
-    ):
+    for col_idx, label in enumerate(["Check ID", "Description", "Severity", "Count"], start=1):
         cell = ws.cell(row=13, column=col_idx, value=label)
         cell.font = Font(bold=True, color="FFFFFF")
         cell.fill = HEADER_FILL
@@ -759,15 +751,9 @@ def print_console_summary(
     from validators import CHECK_META
 
     print("\n")
-    print(
-        "╔══════════╦══════════════════════════════════════════════╦══════════╦═══════════╗"
-    )
-    print(
-        "║ Check ID ║ Description                                  ║ Severity ║   Count   ║"
-    )
-    print(
-        "╠══════════╬══════════════════════════════════════════════╬══════════╬═══════════╣"
-    )
+    print("╔══════════╦══════════════════════════════════════════════╦══════════╦═══════════╗")
+    print("║ Check ID ║ Description                                  ║ Severity ║   Count   ║")
+    print("╠══════════╬══════════════════════════════════════════════╬══════════╬═══════════╣")
     for chk_id in sorted(CHECK_META.keys()):
         cnt = check_counts.get(chk_id, 0)
         sev = CHECK_META[chk_id]["severity"]
@@ -776,15 +762,9 @@ def print_console_summary(
         sev_s = sev.ljust(8)
         cnt_s = str(cnt).center(9)
         print(f"║ {chk} ║ {desc} ║ {sev_s} ║ {cnt_s} ║")
-    print(
-        "╠══════════╬══════════════════════════════════════════════╬══════════╬═══════════╣"
-    )
-    print(
-        f"║ {'TOTAL'.ljust(8)} ║ {''.ljust(44)} ║ {''.ljust(8)} ║ {str(len(issues)).center(9)} ║"
-    )
-    print(
-        "╚══════════╩══════════════════════════════════════════════╩══════════╩═══════════╝"
-    )
+    print("╠══════════╬══════════════════════════════════════════════╬══════════╬═══════════╣")
+    print(f"║ {'TOTAL'.ljust(8)} ║ {''.ljust(44)} ║ {''.ljust(8)} ║ {str(len(issues)).center(9)} ║")
+    print("╚══════════╩══════════════════════════════════════════════╩══════════╩═══════════╝")
     print(f"\n  Positions Checked : {total_positions}")
     print(f"  Total Issues      : {len(issues)}")
     print(f"  CRITICAL          : {critical_n}")
@@ -827,9 +807,7 @@ def _fix_action(issue: dict[str, Any]) -> str:
 def write_fix_pack(issues: list[dict[str, Any]], country: str = "CA") -> str:
     """Write suggested correction templates and ownership by issue type."""
     _ensure_output_dir()
-    path = os.path.join(
-        OUTPUT_DIR, f"position_integrity_fix_pack_{country}_{_datestamp()}.csv"
-    )
+    path = os.path.join(OUTPUT_DIR, f"position_integrity_fix_pack_{country}_{_datestamp()}.csv")
     rows = []
     for issue in _normalise_dates(issues):
         rows.append(

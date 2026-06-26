@@ -493,16 +493,12 @@ def init_db() -> None:
     conn = sqlite3.connect(DB_PATH)
     cur = conn.cursor()
     # Drop views first (they depend on tables)
-    cur.execute(
-        "SELECT name FROM sqlite_master WHERE type='view' AND name NOT LIKE 'sqlite_%'"
-    )
+    cur.execute("SELECT name FROM sqlite_master WHERE type='view' AND name NOT LIKE 'sqlite_%'")
     for (vname,) in cur.fetchall():
         _validate_sql_identifier(vname)
         conn.execute(f"DROP VIEW IF EXISTS [{vname}]")
     # Drop all user tables
-    cur.execute(
-        "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'"
-    )
+    cur.execute("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'")
     for (tname,) in cur.fetchall():
         _validate_sql_identifier(tname)
         conn.execute(f"DROP TABLE IF EXISTS [{tname}]")
@@ -644,9 +640,7 @@ def load_table(table_name: str) -> list[dict[str, Any]]:
 # ---------------------------------------------------------------------------
 
 
-def save_extract_meta(
-    country: str, positions_fetched: int, complete: bool = False
-) -> int:
+def save_extract_meta(country: str, positions_fetched: int, complete: bool = False) -> int:
     conn = get_connection()
     try:
         ts = datetime.now().isoformat(timespec="seconds")
@@ -664,9 +658,7 @@ def save_extract_meta(
 def mark_extract_complete(meta_id: int) -> None:
     conn = get_connection()
     try:
-        conn.execute(
-            "UPDATE extract_meta SET extract_complete=1 WHERE id=?", (meta_id,)
-        )
+        conn.execute("UPDATE extract_meta SET extract_complete=1 WHERE id=?", (meta_id,))
         conn.commit()
     finally:
         conn.close()

@@ -23,9 +23,7 @@ import yaml
 # Load rules from YAML
 # ---------------------------------------------------------------------------
 
-_RULES_PATH = os.path.join(
-    os.path.dirname(os.path.abspath(__file__)), "config", "rules.yaml"
-)
+_RULES_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "config", "rules.yaml")
 
 with open(_RULES_PATH, encoding="utf-8") as _f:
     _rules_data = yaml.safe_load(_f)
@@ -91,9 +89,7 @@ def _parse_date(raw: Any) -> datetime.date | None:
         try:
             ms = int(m.group(0))
             # Use epoch-day arithmetic to avoid Windows timestamp range issues.
-            return datetime.date(1970, 1, 1) + datetime.timedelta(
-                days=(ms // 86_400_000)
-            )
+            return datetime.date(1970, 1, 1) + datetime.timedelta(days=(ms // 86_400_000))
         except (ValueError, OverflowError):
             try:
                 return datetime.date.min if int(m.group(0)) < 0 else datetime.date.max
@@ -279,9 +275,7 @@ def validate_positions(
         pos_code = _val(pos, "code") or ""
         empjob_rec = empjob_lookup.get(pos_code, {})
         pos["__empjob_userId"] = empjob_rec.get("userId", "") if empjob_rec else ""
-        pos["__empjob_emplStatus"] = (
-            empjob_rec.get("emplStatus", "") if empjob_rec else ""
-        )
+        pos["__empjob_emplStatus"] = empjob_rec.get("emplStatus", "") if empjob_rec else ""
 
     for pos in positions:
         for rule in _ENABLED_RULES:
@@ -342,13 +336,7 @@ def build_lookups_from_db() -> dict[str, Any]:
         # EmpJob: current employee assignment keyed by position_code
         "empjob": {r["position_code"]: r for r in load_table("emp_job")},
         # Set-valued junction lookups
-        "div_to_bus": to_set_lookup(
-            "fo_division_business_unit", "division_code", "bu_code"
-        ),
-        "bu_to_les": to_set_lookup(
-            "fo_bu_legal_entity", "bu_code", "legal_entity_code"
-        ),
-        "cc_to_bus": to_set_lookup(
-            "fo_cost_center_business_unit", "cost_center_code", "bu_code"
-        ),
+        "div_to_bus": to_set_lookup("fo_division_business_unit", "division_code", "bu_code"),
+        "bu_to_les": to_set_lookup("fo_bu_legal_entity", "bu_code", "legal_entity_code"),
+        "cc_to_bus": to_set_lookup("fo_cost_center_business_unit", "cost_center_code", "bu_code"),
     }

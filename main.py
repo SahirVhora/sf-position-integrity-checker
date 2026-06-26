@@ -29,9 +29,7 @@ def _print_banner() -> None:
     tool = f"SF Position Integrity Checker  v{VERSION}"
     url = GITHUB_URL
     auth_label = (
-        "Auth: OAuth2 SAML Bearer Token"
-        if config.AUTH_METHOD == "oauth2"
-        else "Auth: Basic Auth"
+        "Auth: OAuth2 SAML Bearer Token" if config.AUTH_METHOD == "oauth2" else "Auth: Basic Auth"
     )
     print(f"\n╔{border}╗")
     print(f"║{tool.center(width)}║")
@@ -196,9 +194,7 @@ def run() -> None:
         max_key = max(len(k) for k in summary)
         for entity, count in summary.items():
             print(f"  {entity:<{max_key}} : {count:>6} record(s)")
-        print(
-            f"\n[DONE] Data extracted and saved to ./data/sf_integrity_{country}.db\n"
-        )
+        print(f"\n[DONE] Data extracted and saved to ./data/sf_integrity_{country}.db\n")
 
 
 def main() -> None:

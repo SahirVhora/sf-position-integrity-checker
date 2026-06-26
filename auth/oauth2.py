@@ -96,21 +96,15 @@ def _build_saml_assertion(vars: dict) -> bytes:
     conditions.set("NotBefore", not_before)
     conditions.set("NotOnOrAfter", not_after)
 
-    audience_restriction = etree.SubElement(
-        conditions, f"{{{SAML}}}AudienceRestriction"
-    )
+    audience_restriction = etree.SubElement(conditions, f"{{{SAML}}}AudienceRestriction")
     audience = etree.SubElement(audience_restriction, f"{{{SAML}}}Audience")
     audience.text = vars["SF_TOKEN_URL"]
 
     authn_stmt = etree.SubElement(assertion, f"{{{SAML}}}AuthnStatement")
     authn_stmt.set("AuthnInstant", not_before)
     authn_context = etree.SubElement(authn_stmt, f"{{{SAML}}}AuthnContext")
-    authn_context_class = etree.SubElement(
-        authn_context, f"{{{SAML}}}AuthnContextClassRef"
-    )
-    authn_context_class.text = (
-        "urn:oasis:names:tc:SAML:2.0:ac:classes:PasswordProtectedTransport"
-    )
+    authn_context_class = etree.SubElement(authn_context, f"{{{SAML}}}AuthnContextClassRef")
+    authn_context_class.text = "urn:oasis:names:tc:SAML:2.0:ac:classes:PasswordProtectedTransport"
 
     signer = XMLSigner(
         method=XMLSigner.excl_c14n,
@@ -122,9 +116,7 @@ def _build_saml_assertion(vars: dict) -> bytes:
         key=private_key,
         reference_uri=f"#{assertion_id}",
     )
-    return etree.tostring(
-        signed_root, xml_declaration=False, encoding="unicode"
-    ).encode("utf-8")
+    return etree.tostring(signed_root, xml_declaration=False, encoding="unicode").encode("utf-8")
 
 
 def _fetch_token(vars: dict) -> tuple:
@@ -147,8 +139,7 @@ def _fetch_token(vars: dict) -> tuple:
     if resp.status_code != 200:
         body_snippet = resp.text[:500]
         raise RuntimeError(
-            f"OAuth2 token request failed - HTTP {resp.status_code}\n"
-            f"Response: {body_snippet}"
+            f"OAuth2 token request failed - HTTP {resp.status_code}\nResponse: {body_snippet}"
         )
 
     payload = resp.json()
@@ -157,8 +148,7 @@ def _fetch_token(vars: dict) -> tuple:
 
     if not access_token:
         raise RuntimeError(
-            f"OAuth2 token response did not contain 'access_token'.\n"
-            f"Response: {str(payload)[:500]}"
+            f"OAuth2 token response did not contain 'access_token'.\nResponse: {str(payload)[:500]}"
         )
 
     return access_token, expires_in

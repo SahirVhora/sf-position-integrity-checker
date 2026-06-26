@@ -117,9 +117,7 @@ def test_schema_structure():
 
     # Views
     expected_views = {"chk01_failures", "chk03_failures", "chk04_failures"}
-    existing_views = {
-        r[0] for r in c.execute("SELECT name FROM sqlite_master WHERE type='view'")
-    }
+    existing_views = {r[0] for r in c.execute("SELECT name FROM sqlite_master WHERE type='view'")}
     for v in expected_views:
         assert_true(f"view '{v}' exists", v in existing_views)
 
@@ -163,9 +161,7 @@ def test_schema_structure():
         "cust_sub_department has 'endDate'",
         col_exists("cust_sub_department", "endDate"),
     )
-    assert_true(
-        "cust_sub_department has 'status'", col_exists("cust_sub_department", "status")
-    )
+    assert_true("cust_sub_department has 'status'", col_exists("cust_sub_department", "status"))
     assert_true(
         "cust_sub_department has NO 'effectiveStartDate'",
         not col_exists("cust_sub_department", "effectiveStartDate"),
@@ -411,16 +407,10 @@ def _insert_synthetic_data(c: sqlite3.Connection) -> None:
 
     # Junction tables
     # BU-001 → LE-001 (only)
-    c.execute(
-        "INSERT OR REPLACE INTO fo_bu_legal_entity VALUES (?,?)", ("BU-001", "LE-001")
-    )
+    c.execute("INSERT OR REPLACE INTO fo_bu_legal_entity VALUES (?,?)", ("BU-001", "LE-001"))
     # BU-002 → LE-001 AND LE-002
-    c.execute(
-        "INSERT OR REPLACE INTO fo_bu_legal_entity VALUES (?,?)", ("BU-002", "LE-001")
-    )
-    c.execute(
-        "INSERT OR REPLACE INTO fo_bu_legal_entity VALUES (?,?)", ("BU-002", "LE-002")
-    )
+    c.execute("INSERT OR REPLACE INTO fo_bu_legal_entity VALUES (?,?)", ("BU-002", "LE-001"))
+    c.execute("INSERT OR REPLACE INTO fo_bu_legal_entity VALUES (?,?)", ("BU-002", "LE-002"))
     # DIV-001 → BU-001 AND BU-002 (multi-BU division)
     c.execute(
         "INSERT OR REPLACE INTO fo_division_business_unit VALUES (?,?)",
@@ -453,9 +443,7 @@ def test_junction_tables():
         lookups["div_to_bus"].get("DIV-001"),
         {"BU-001", "BU-002"},
     )
-    assert_eq(
-        "missing division maps to None", lookups["div_to_bus"].get("DIV-999"), None
-    )
+    assert_eq("missing division maps to None", lookups["div_to_bus"].get("DIV-999"), None)
 
     # bu_to_les
     assert_eq("BU-001 maps to {LE-001}", lookups["bu_to_les"].get("BU-001"), {"LE-001"})
@@ -534,9 +522,7 @@ def test_check_logic():
     assert_eq("CHK-03 passes for BU-001 in DIV-001", len(chk11), 0)
 
     # CHK-03: BU-002 is also allowed for DIV-001 → no issue (multi-BU division)
-    issues = validate_positions(
-        [_make_position(businessUnit="BU-002", company="LE-001")], lookups
-    )
+    issues = validate_positions([_make_position(businessUnit="BU-002", company="LE-001")], lookups)
     chk11 = [i for i in issues if i["Check ID"] == "CHK-03"]
     assert_eq("CHK-03 passes for BU-002 in DIV-001 (multi-BU)", len(chk11), 0)
 
@@ -546,21 +532,16 @@ def test_check_logic():
     assert_true("CHK-03 fires for BU-999 not in DIV-001", len(chk11) == 1)
     assert_true(
         "CHK-03 description contains both allowed BUs",
-        "BU-001" in chk11[0]["Issue Description"]
-        and "BU-002" in chk11[0]["Issue Description"],
+        "BU-001" in chk11[0]["Issue Description"] and "BU-002" in chk11[0]["Issue Description"],
     )
 
     # CHK-04: LE-001 is allowed for BU-001 → no issue
-    issues = validate_positions(
-        [_make_position(company="LE-001", businessUnit="BU-001")], lookups
-    )
+    issues = validate_positions([_make_position(company="LE-001", businessUnit="BU-001")], lookups)
     chk12 = [i for i in issues if i["Check ID"] == "CHK-04"]
     assert_eq("CHK-04 passes for LE-001 in BU-001", len(chk12), 0)
 
     # CHK-04: LE-002 is NOT in BU-001 → issue
-    issues = validate_positions(
-        [_make_position(company="LE-002", businessUnit="BU-001")], lookups
-    )
+    issues = validate_positions([_make_position(company="LE-002", businessUnit="BU-001")], lookups)
     chk12 = [i for i in issues if i["Check ID"] == "CHK-04"]
     assert_true("CHK-04 fires for LE-002 not in BU-001", len(chk12) == 1)
 
@@ -603,17 +584,13 @@ def test_check_logic():
     assert_true("CHK-08 fires when position GJL is blank", len(chk17) == 1)
 
     # CHK-07: job sub function mismatch
-    issues = validate_positions(
-        [_make_position(cust_jobSubFunction="JSF-WRONG")], lookups
-    )
+    issues = validate_positions([_make_position(cust_jobSubFunction="JSF-WRONG")], lookups)
     chk07 = [i for i in issues if i["Check ID"] == "CHK-07"]
     assert_true("CHK-07 fires for job sub function mismatch", len(chk07) == 1)
     assert_eq("CHK-07 severity", chk07[0]["Severity"], "HIGH")
 
     # CHK-07: passes when job sub function matches
-    issues = validate_positions(
-        [_make_position(cust_jobSubFunction="JSF-001")], lookups
-    )
+    issues = validate_positions([_make_position(cust_jobSubFunction="JSF-001")], lookups)
     chk07 = [i for i in issues if i["Check ID"] == "CHK-07"]
     assert_eq("CHK-07 passes when job sub function matches", len(chk07), 0)
 
@@ -793,9 +770,7 @@ def test_foundation_active_checks():
     assert_true("CHK-10 fires for future-dated legal entity", len(chk10) == 1)
 
     # CHK-10: passes for active legal entity
-    issues = validate_positions(
-        [_make_position(company="LE-001")], lookups, as_of_date=as_of_date
-    )
+    issues = validate_positions([_make_position(company="LE-001")], lookups, as_of_date=as_of_date)
     chk10 = [i for i in issues if i["Check ID"] == "CHK-10"]
     assert_eq("CHK-10 passes for active legal entity", len(chk10), 0)
 
@@ -807,9 +782,7 @@ def test_foundation_active_checks():
         [_make_position(company="LE-END-ON-ASOF")], lookups, as_of_date=as_of_date
     )
     chk10 = [i for i in issues if i["Check ID"] == "CHK-10"]
-    assert_eq(
-        "CHK-10 inclusive endDate: entity ending on as_of_date IS active", len(chk10), 0
-    )
+    assert_eq("CHK-10 inclusive endDate: entity ending on as_of_date IS active", len(chk10), 0)
 
     # CHK-10: boundary - endDate one day BEFORE as_of_date is NOT active.
     # Inserting a fresh entity to keep the test self-contained.
@@ -833,9 +806,7 @@ def test_foundation_active_checks():
         [_make_position(company="LE-ENDED-YESTERDAY")], lookups, as_of_date=as_of_date
     )
     chk10 = [i for i in issues if i["Check ID"] == "CHK-10"]
-    assert_true(
-        "CHK-10 fires when endDate is one day before as_of_date", len(chk10) == 1
-    )
+    assert_true("CHK-10 fires when endDate is one day before as_of_date", len(chk10) == 1)
 
     # CHK-10: boundary - startDate == as_of_date IS active (start-of-day)
     issues = validate_positions(
@@ -919,9 +890,7 @@ def test_foundation_active_checks():
     assert_eq("CHK-15 severity", chk15[0]["Severity"], "CRITICAL")
 
     # CHK-15: passes for active job code
-    issues = validate_positions(
-        [_make_position(jobCode="JC-001")], lookups, as_of_date=as_of_date
-    )
+    issues = validate_positions([_make_position(jobCode="JC-001")], lookups, as_of_date=as_of_date)
     chk15 = [i for i in issues if i["Check ID"] == "CHK-15"]
     assert_eq("CHK-15 passes for active job code", len(chk15), 0)
 
@@ -1003,9 +972,7 @@ def test_validation_results_save():
     assert_eq("extract_meta_id FK set", last["extract_meta_id"], meta_id)
     # Snapshot columns removed - these must NOT be present
     assert_true("company NOT in validation_results row", "company" not in last)
-    assert_true(
-        "businessUnit NOT in validation_results row", "businessUnit" not in last
-    )
+    assert_true("businessUnit NOT in validation_results row", "businessUnit" not in last)
 
     # FK violation: invalid meta_id must be rejected with FK pragma ON
     import sqlite3 as _sql
@@ -1032,9 +999,7 @@ def test_audit_views():
         "VALUES ('VIEW-TEST-P1', 'SD-001', 'DEPT-WRONG')"
     )
     c.commit()
-    rows = c.execute(
-        "SELECT * FROM chk01_failures WHERE position_code='VIEW-TEST-P1'"
-    ).fetchall()
+    rows = c.execute("SELECT * FROM chk01_failures WHERE position_code='VIEW-TEST-P1'").fetchall()
     assert_true("chk01_failures detects SD-001/DEPT-WRONG mismatch", len(rows) == 1)
 
     # chk01_failures: correct position should not appear
@@ -1043,9 +1008,7 @@ def test_audit_views():
         "VALUES ('VIEW-TEST-P2', 'SD-001', 'DEPT-001')"
     )
     c.commit()
-    rows = c.execute(
-        "SELECT * FROM chk01_failures WHERE position_code='VIEW-TEST-P2'"
-    ).fetchall()
+    rows = c.execute("SELECT * FROM chk01_failures WHERE position_code='VIEW-TEST-P2'").fetchall()
     assert_eq("chk01_failures: correct position not flagged", len(rows), 0)
 
     # chk03_failures: BU-999 not in DIV-001
@@ -1054,9 +1017,7 @@ def test_audit_views():
         "VALUES ('VIEW-TEST-P3', 'DIV-001', 'BU-999')"
     )
     c.commit()
-    rows = c.execute(
-        "SELECT * FROM chk03_failures WHERE position_code='VIEW-TEST-P3'"
-    ).fetchall()
+    rows = c.execute("SELECT * FROM chk03_failures WHERE position_code='VIEW-TEST-P3'").fetchall()
     assert_true("chk03_failures detects BU-999 not in DIV-001", len(rows) == 1)
 
     # chk04_failures: LE-002 not in BU-001
@@ -1065,9 +1026,7 @@ def test_audit_views():
         "VALUES ('VIEW-TEST-P4', 'BU-001', 'LE-002')"
     )
     c.commit()
-    rows = c.execute(
-        "SELECT * FROM chk04_failures WHERE position_code='VIEW-TEST-P4'"
-    ).fetchall()
+    rows = c.execute("SELECT * FROM chk04_failures WHERE position_code='VIEW-TEST-P4'").fetchall()
     assert_true("chk04_failures detects LE-002 not in BU-001", len(rows) == 1)
 
     c.close()
@@ -1091,9 +1050,7 @@ def test_save_pipe_sep_junctions():
     c.close()
 
     # Simulate what fetchers.py does: record still has raw pipe-sep value
-    records = [
-        {"externalCode": "DIV-PIPE", "cust_BusinessUnit": "BU-001|BU-002|BU-003"}
-    ]
+    records = [{"externalCode": "DIV-PIPE", "cust_BusinessUnit": "BU-001|BU-002|BU-003"}]
     db.save_pipe_sep_junctions(
         "fo_division_business_unit",
         "division_code",

@@ -140,9 +140,7 @@ def _parse_sf_date(raw: Any) -> datetime.date | None:
         return None
     s = str(raw).strip()
     if s.startswith("/Date("):
-        inner = s[6:].split(")")[
-            0
-        ]  # e.g. "1609459200000", "-2208988800000", "1609459200000+0200"
+        inner = s[6:].split(")")[0]  # e.g. "1609459200000", "-2208988800000", "1609459200000+0200"
         # Strip timezone offset: scan from index 1 to keep any leading '-' sign
         ms_str = inner
         for i in range(1, len(inner)):
@@ -188,11 +186,7 @@ def _is_effective_fo(record: dict, as_of_date: datetime.date) -> bool:
 def _is_active_subdept(record: dict, today: datetime.date) -> bool:
     start = _parse_sf_date(record.get("effectiveStartDate"))
     end = _parse_sf_date(record.get("mdfSystemEffectiveEndDate")) or _DISTANT_FUTURE
-    return (
-        (start is not None)
-        and start <= today <= end
-        and record.get("mdfSystemStatus") == "A"
-    )
+    return (start is not None) and start <= today <= end and record.get("mdfSystemStatus") == "A"
 
 
 def _is_effective_subdept(record: dict, as_of_date: datetime.date) -> bool:
@@ -204,11 +198,7 @@ def _is_effective_subdept(record: dict, as_of_date: datetime.date) -> bool:
 def _is_active_position(record: dict, today: datetime.date) -> bool:
     start = _parse_sf_date(record.get("effectiveStartDate"))
     end = _parse_sf_date(record.get("effectiveEndDate")) or _DISTANT_FUTURE
-    return (
-        (start is not None)
-        and start <= today <= end
-        and record.get("effectiveStatus") == "A"
-    )
+    return (start is not None) and start <= today <= end and record.get("effectiveStatus") == "A"
 
 
 def _build_lookup(
@@ -228,9 +218,7 @@ def _build_lookup(
         if code not in lookup:
             lookup[code] = rec
         else:
-            existing_start = (
-                _parse_sf_date(lookup[code].get(start_field)) or datetime.date.min
-            )
+            existing_start = _parse_sf_date(lookup[code].get(start_field)) or datetime.date.min
             this_start = _parse_sf_date(rec.get(start_field)) or datetime.date.min
             if this_start > existing_start:
                 lookup[code] = rec
@@ -296,10 +284,7 @@ def fetch_positions(
         if code not in lookup:
             lookup[code] = rec
         else:
-            existing = (
-                _parse_sf_date(lookup[code].get("effectiveStartDate"))
-                or datetime.date.min
-            )
+            existing = _parse_sf_date(lookup[code].get("effectiveStartDate")) or datetime.date.min
             this = _parse_sf_date(rec.get("effectiveStartDate")) or datetime.date.min
             if this > existing:
                 lookup[code] = rec
@@ -422,13 +407,9 @@ def _fetch_by_codes(
     for batch_num in range(1, total_batches + 1):
         start = (batch_num - 1) * _CODE_BATCH_SIZE
         batch = code_list[start : start + _CODE_BATCH_SIZE]
-        code_clause = " or ".join(
-            f"externalCode eq '{_odata_escape(c)}'" for c in batch
-        )
+        code_clause = " or ".join(f"externalCode eq '{_odata_escape(c)}'" for c in batch)
         filter_expr = (
-            f"({code_clause}) and {status_filter}"
-            if status_filter
-            else f"({code_clause})"
+            f"({code_clause}) and {status_filter}" if status_filter else f"({code_clause})"
         )
         print(
             f"\n[{step}] Fetching {entity} for {len(codes)} unique codes "
@@ -455,9 +436,7 @@ def _fetch_by_codes(
 
     lookup = _build_lookup(all_records, target_date, is_effective_fn, start_field)
     result = list(lookup.values())
-    print(
-        f"  -> {len(result)} effective {entity} record(s) as-of {target_date.isoformat()}"
-    )
+    print(f"  -> {len(result)} effective {entity} record(s) as-of {target_date.isoformat()}")
     _emit_progress(
         progress_callback,
         {
@@ -536,9 +515,7 @@ def fetch_fo_business_unit(
             progress_callback=progress_callback,
         )
     except Exception as exc:
-        print(
-            f"[WARN] FOBusinessUnit fetch failed: {exc}. Continuing with empty result."
-        )
+        print(f"[WARN] FOBusinessUnit fetch failed: {exc}. Continuing with empty result.")
         _emit_progress(
             progress_callback,
             {
@@ -665,9 +642,7 @@ def fetch_cust_sub_department(
             rec["status"] = rec.pop("mdfSystemStatus", None)
         return records
     except Exception as exc:
-        print(
-            f"[WARN] cust_SubDepartment fetch failed: {exc}. Continuing with empty result."
-        )
+        print(f"[WARN] cust_SubDepartment fetch failed: {exc}. Continuing with empty result.")
         _emit_progress(
             progress_callback,
             {
@@ -806,8 +781,7 @@ def _fetch_cust_job_class(
         if not jc_code:
             continue
         this_start = (
-            _parse_sf_date(rec.get("JobClassification_effectiveStartDate"))
-            or datetime.date.min
+            _parse_sf_date(rec.get("JobClassification_effectiveStartDate")) or datetime.date.min
         )
         if this_start > today:
             continue  # skip future-dated versions
@@ -815,9 +789,7 @@ def _fetch_cust_job_class(
             lookup[jc_code] = rec
         else:
             existing_start = (
-                _parse_sf_date(
-                    lookup[jc_code].get("JobClassification_effectiveStartDate")
-                )
+                _parse_sf_date(lookup[jc_code].get("JobClassification_effectiveStartDate"))
                 or datetime.date.min
             )
             if this_start > existing_start:
@@ -859,9 +831,7 @@ def fetch_fo_job_class_local(
     entity = _job_class_entity(country_code)
     try:
         if entity.startswith("cust_"):
-            return _fetch_cust_job_class(
-                entity, codes, progress_callback=progress_callback
-            )
+            return _fetch_cust_job_class(entity, codes, progress_callback=progress_callback)
         else:
             return _fetch_by_codes(
                 entity=entity,
@@ -1088,15 +1058,11 @@ def fetch_jobcode_subfunctions(
                     sub_code = _fetch_via_expand()
                     return (jc_code, sub_code)
                 except Exception as fallback_exc:
-                    print(
-                        f"  [WARN] Fallback fetch failed for {jc_code}: {fallback_exc}"
-                    )
+                    print(f"  [WARN] Fallback fetch failed for {jc_code}: {fallback_exc}")
                     return (jc_code, None)
 
         with concurrent.futures.ThreadPoolExecutor(max_workers=10) as executor:
-            futures = {
-                executor.submit(_fetch_one, rec): rec for rec in job_code_records
-            }
+            futures = {executor.submit(_fetch_one, rec): rec for rec in job_code_records}
             done = 0
             for future in concurrent.futures.as_completed(futures):
                 jc_code, sub_code = future.result()
@@ -1105,9 +1071,7 @@ def fetch_jobcode_subfunctions(
                 done += 1
                 if done % 50 == 0 or done == total:
                     found = sum(1 for v in result.values() if v)
-                    print(
-                        f"  ... {done}/{total} processed - {found} sub functions found so far"
-                    )
+                    print(f"  ... {done}/{total} processed - {found} sub functions found so far")
                     _emit_progress(
                         progress_callback,
                         {
@@ -1135,9 +1099,7 @@ def fetch_jobcode_subfunctions(
         )
         return result
     except Exception as exc:
-        print(
-            f"[WARN] job_subfunction fetch failed: {exc}. Continuing with empty result."
-        )
+        print(f"[WARN] job_subfunction fetch failed: {exc}. Continuing with empty result.")
         _emit_progress(
             progress_callback,
             {
@@ -1246,9 +1208,7 @@ def fetch_empjob_for_positions(
         total_batches = math.ceil(len(code_list) / _CODE_BATCH_SIZE)
 
         def _fetch_batch(batch: list[str]) -> list[dict]:
-            code_clause = " or ".join(
-                f"position eq '{_odata_escape(c)}'" for c in batch
-            )
+            code_clause = " or ".join(f"position eq '{_odata_escape(c)}'" for c in batch)
             raw_records = fetch_all(
                 entity="EmpJob",
                 select_fields=[
@@ -1268,12 +1228,8 @@ def fetch_empjob_for_positions(
                 # We then use that alphabetic code to look up the en_US label from
                 # PickListValueV2 (e.g. "A" → "Active").
                 rec = _normalize_record(raw)
-                alpha_code = str(
-                    rec.get("emplStatusNav") or ""
-                ).strip()  # "A", "T", etc.
-                rec["emplStatus"] = (
-                    status_labels.get(alpha_code, alpha_code) if alpha_code else ""
-                )
+                alpha_code = str(rec.get("emplStatusNav") or "").strip()  # "A", "T", etc.
+                rec["emplStatus"] = status_labels.get(alpha_code, alpha_code) if alpha_code else ""
                 result.append(rec)
             return result
 
@@ -1300,9 +1256,7 @@ def fetch_empjob_for_positions(
         ]
 
         with concurrent.futures.ThreadPoolExecutor(max_workers=10) as executor:
-            future_to_num = {
-                executor.submit(_fetch_batch, b): n for n, b in enumerate(batches, 1)
-            }
+            future_to_num = {executor.submit(_fetch_batch, b): n for n, b in enumerate(batches, 1)}
             done = 0
             for future in concurrent.futures.as_completed(future_to_num):
                 all_records.extend(future.result())
@@ -1334,8 +1288,7 @@ def fetch_empjob_for_positions(
                 lookup[pos_code] = rec
             else:
                 existing_start = (
-                    _parse_sf_date(lookup[pos_code].get("startDate"))
-                    or datetime.date.min
+                    _parse_sf_date(lookup[pos_code].get("startDate")) or datetime.date.min
                 )
                 if rec_start > existing_start:
                     lookup[pos_code] = rec
@@ -1530,9 +1483,7 @@ def run_full_extract(
 
     # 7c: Enrich job codes with their sub-function code via nav-prop (deferred field
     # cannot be resolved via $select alone in SF OData v2)
-    jc_subfuncs = fetch_jobcode_subfunctions(
-        job_codes, progress_callback=progress_callback
-    )
+    jc_subfuncs = fetch_jobcode_subfunctions(job_codes, progress_callback=progress_callback)
     if not jc_subfuncs and job_codes:
         print(
             f"[WARN] job_subfunctions returned 0 records for {len(job_codes)} job codes - checks that depend on this entity will be skipped."
@@ -1566,9 +1517,7 @@ def run_full_extract(
 
     # --- EmpJob: current employee assignment per position ---
     pos_codes = [p["code"] for p in positions if p.get("code")]
-    empjob_map = fetch_empjob_for_positions(
-        pos_codes, progress_callback=progress_callback
-    )
+    empjob_map = fetch_empjob_for_positions(pos_codes, progress_callback=progress_callback)
     if not empjob_map and pos_codes:
         print(
             f"[WARN] empjob returned 0 records for {len(pos_codes)} positions - employee data will be absent from reports."
