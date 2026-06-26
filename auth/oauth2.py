@@ -10,8 +10,7 @@ Flow:
 import base64
 import os
 import uuid
-from datetime import datetime, timedelta, timezone
-from typing import Optional
+from datetime import UTC, datetime, timedelta
 
 import requests
 
@@ -19,8 +18,8 @@ import requests
 # Module-level token cache
 # ---------------------------------------------------------------------------
 
-_cached_token: Optional[str] = None
-_token_expiry: Optional[datetime] = None
+_cached_token: str | None = None
+_token_expiry: datetime | None = None
 
 
 def _load_required_vars() -> dict:
@@ -48,9 +47,9 @@ def _build_saml_assertion(vars: dict) -> bytes:
     Returns the signed XML as bytes.
     """
     try:
+        from cryptography.hazmat.primitives.serialization import load_pem_private_key
         from lxml import etree
         from signxml import XMLSigner
-        from cryptography.hazmat.primitives.serialization import load_pem_private_key
     except ImportError as exc:
         raise ImportError(
             f"OAuth2 requires additional packages. "
@@ -68,7 +67,7 @@ def _build_saml_assertion(vars: dict) -> bytes:
     with open(key_path, "rb") as fh:
         private_key = load_pem_private_key(fh.read(), password=None)
 
-    now = datetime.now(tz=timezone.utc)
+    now = datetime.now(tz=UTC)
     not_before = now.strftime("%Y-%m-%dT%H:%M:%SZ")
     not_after = (now + timedelta(minutes=10)).strftime("%Y-%m-%dT%H:%M:%SZ")
     assertion_id = f"_{uuid.uuid4()}"
@@ -173,7 +172,7 @@ def get_oauth2_headers() -> dict:
     """
     global _cached_token, _token_expiry
 
-    now = datetime.now(tz=timezone.utc)
+    now = datetime.now(tz=UTC)
     if _cached_token and _token_expiry and now < _token_expiry:
         return {"Authorization": f"Bearer {_cached_token}"}
 

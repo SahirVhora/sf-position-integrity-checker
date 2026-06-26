@@ -13,13 +13,14 @@ import datetime
 import logging
 import math
 import re
-from typing import Any, Callable, Dict, List, Optional, Set
+from collections.abc import Callable
+from typing import Any
 
 from api_client import fetch_all
 
 logger = logging.getLogger(__name__)
 
-ProgressCallback = Callable[[Dict[str, Any]], None]
+ProgressCallback = Callable[[dict[str, Any]], None]
 
 
 def _odata_escape(value: Any) -> str:
@@ -38,7 +39,7 @@ def _odata_escape(value: Any) -> str:
 # ---------------------------------------------------------------------------
 
 
-def _deferred_code(value: Any) -> Optional[str]:
+def _deferred_code(value: Any) -> str | None:
     """
     SF OData v2 returns association/navigation fields as deferred link objects:
       {"__deferred": {"uri": "https://host/odata/v2/FOCompany('3120')"}}
@@ -54,7 +55,7 @@ def _deferred_code(value: Any) -> Optional[str]:
     return None
 
 
-def _emit_progress(callback: Optional[ProgressCallback], event: Dict[str, Any]) -> None:
+def _emit_progress(callback: ProgressCallback | None, event: dict[str, Any]) -> None:
     if callback:
         try:
             callback(event)
@@ -62,7 +63,7 @@ def _emit_progress(callback: Optional[ProgressCallback], event: Dict[str, Any]) 
             pass
 
 
-def _normalize_record(record: Dict) -> Dict:
+def _normalize_record(record: dict) -> dict:
     """
     Walk every field in a raw SF API record and flatten navigation properties
     to plain string codes.  Handles three SF OData v2 patterns:
@@ -81,7 +82,7 @@ def _normalize_record(record: Dict) -> Dict:
 
     Plain scalar values (str, int, None, …) are passed through unchanged.
     """
-    result: Dict = {}
+    result: dict = {}
     for k, v in record.items():
         if isinstance(v, dict):
             if "results" in v and isinstance(v["results"], list):
@@ -123,7 +124,7 @@ _CODE_BATCH_SIZE = 50
 # ---------------------------------------------------------------------------
 
 
-def _parse_sf_date(raw: Any) -> Optional[datetime.date]:
+def _parse_sf_date(raw: Any) -> datetime.date | None:
     """
     Parse SF OData v2 date formats:
       - ISO "YYYY-MM-DD" / "YYYY-MM-DDThh:mm:ss"
@@ -172,19 +173,19 @@ def _parse_sf_date(raw: Any) -> Optional[datetime.date]:
         return None
 
 
-def _is_active_fo(record: Dict, today: datetime.date) -> bool:
+def _is_active_fo(record: dict, today: datetime.date) -> bool:
     start = _parse_sf_date(record.get("startDate"))
     end = _parse_sf_date(record.get("endDate")) or _DISTANT_FUTURE
     return (start is not None) and start <= today <= end and record.get("status") == "A"
 
 
-def _is_effective_fo(record: Dict, as_of_date: datetime.date) -> bool:
+def _is_effective_fo(record: dict, as_of_date: datetime.date) -> bool:
     start = _parse_sf_date(record.get("startDate"))
     end = _parse_sf_date(record.get("endDate")) or _DISTANT_FUTURE
     return (start is not None) and start <= as_of_date <= end
 
 
-def _is_active_subdept(record: Dict, today: datetime.date) -> bool:
+def _is_active_subdept(record: dict, today: datetime.date) -> bool:
     start = _parse_sf_date(record.get("effectiveStartDate"))
     end = _parse_sf_date(record.get("mdfSystemEffectiveEndDate")) or _DISTANT_FUTURE
     return (
@@ -194,13 +195,13 @@ def _is_active_subdept(record: Dict, today: datetime.date) -> bool:
     )
 
 
-def _is_effective_subdept(record: Dict, as_of_date: datetime.date) -> bool:
+def _is_effective_subdept(record: dict, as_of_date: datetime.date) -> bool:
     start = _parse_sf_date(record.get("effectiveStartDate"))
     end = _parse_sf_date(record.get("mdfSystemEffectiveEndDate")) or _DISTANT_FUTURE
     return (start is not None) and start <= as_of_date <= end
 
 
-def _is_active_position(record: Dict, today: datetime.date) -> bool:
+def _is_active_position(record: dict, today: datetime.date) -> bool:
     start = _parse_sf_date(record.get("effectiveStartDate"))
     end = _parse_sf_date(record.get("effectiveEndDate")) or _DISTANT_FUTURE
     return (
@@ -211,13 +212,13 @@ def _is_active_position(record: Dict, today: datetime.date) -> bool:
 
 
 def _build_lookup(
-    records: List[Dict],
+    records: list[dict],
     today: datetime.date,
     is_active_fn,
     start_field: str = "startDate",
-) -> Dict[str, Dict]:
+) -> dict[str, dict]:
     """Reduce versioned records to one active record per externalCode (latest startDate wins)."""
-    lookup: Dict[str, Dict] = {}
+    lookup: dict[str, dict] = {}
     for rec in records:
         if not is_active_fn(rec, today):
             continue
@@ -243,9 +244,9 @@ def _build_lookup(
 
 def fetch_positions(
     country_code: str = "CAN",
-    as_of_date: Optional[datetime.date] = None,
-    progress_callback: Optional[ProgressCallback] = None,
-) -> List[Dict]:
+    as_of_date: datetime.date | None = None,
+    progress_callback: ProgressCallback | None = None,
+) -> list[dict]:
     """Fetch all active Canada positions from SF with full pagination."""
     _emit_progress(
         progress_callback,
@@ -284,7 +285,7 @@ def fetch_positions(
         filter_expr=f"cust_Country eq '{_odata_escape(country_code)}' and effectiveStatus eq 'A'",
     )
     target_date = as_of_date or datetime.date.today()
-    lookup: Dict[str, Dict] = {}
+    lookup: dict[str, dict] = {}
     for rec in records:
         rec = _normalize_record(rec)
         if not _is_active_position(rec, target_date):
@@ -330,9 +331,9 @@ def fetch_positions(
 
 
 def collect_unique_codes(
-    positions: List[Dict],
-    progress_callback: Optional[ProgressCallback] = None,
-) -> Dict[str, Set[str]]:
+    positions: list[dict],
+    progress_callback: ProgressCallback | None = None,
+) -> dict[str, set[str]]:
     """Return a dict of sets: one set of unique referenced codes per foundation field."""
     _emit_progress(
         progress_callback,
@@ -343,7 +344,7 @@ def collect_unique_codes(
             "status": "running",
         },
     )
-    codes: Dict[str, Set[str]] = {
+    codes: dict[str, set[str]] = {
         "company": set(),
         "businessUnit": set(),
         "division": set(),
@@ -384,15 +385,15 @@ def collect_unique_codes(
 def _fetch_by_codes(
     entity: str,
     step: str,
-    codes: Set[str],
-    select_fields: List[str],
+    codes: set[str],
+    select_fields: list[str],
     is_effective_fn,
-    progress_callback: Optional[ProgressCallback] = None,
+    progress_callback: ProgressCallback | None = None,
     start_field: str = "startDate",
-    expand_fields: Optional[List[str]] = None,
-    status_filter: Optional[str] = None,
-    as_of_date: Optional[datetime.date] = None,
-) -> List[Dict]:
+    expand_fields: list[str] | None = None,
+    status_filter: str | None = None,
+    as_of_date: datetime.date | None = None,
+) -> list[dict]:
     """
     Fetch records for the given set of codes in batches of _CODE_BATCH_SIZE.
     Applies effective-date filtering after fetch and returns one effective record
@@ -416,7 +417,7 @@ def _fetch_by_codes(
     code_list = sorted(codes)
     total_batches = math.ceil(len(code_list) / _CODE_BATCH_SIZE)
     target_date = as_of_date or datetime.date.today()
-    all_records: List[Dict] = []
+    all_records: list[dict] = []
 
     for batch_num in range(1, total_batches + 1):
         start = (batch_num - 1) * _CODE_BATCH_SIZE
@@ -477,10 +478,10 @@ def _fetch_by_codes(
 
 
 def fetch_fo_company(
-    codes: Set[str],
-    as_of_date: Optional[datetime.date] = None,
-    progress_callback: Optional[ProgressCallback] = None,
-) -> List[Dict]:
+    codes: set[str],
+    as_of_date: datetime.date | None = None,
+    progress_callback: ProgressCallback | None = None,
+) -> list[dict]:
     try:
         return _fetch_by_codes(
             entity="FOCompany",
@@ -513,10 +514,10 @@ def fetch_fo_company(
 
 
 def fetch_fo_business_unit(
-    codes: Set[str],
-    as_of_date: Optional[datetime.date] = None,
-    progress_callback: Optional[ProgressCallback] = None,
-) -> List[Dict]:
+    codes: set[str],
+    as_of_date: datetime.date | None = None,
+    progress_callback: ProgressCallback | None = None,
+) -> list[dict]:
     try:
         return _fetch_by_codes(
             entity="FOBusinessUnit",
@@ -551,10 +552,10 @@ def fetch_fo_business_unit(
 
 
 def fetch_fo_division(
-    codes: Set[str],
-    as_of_date: Optional[datetime.date] = None,
-    progress_callback: Optional[ProgressCallback] = None,
-) -> List[Dict]:
+    codes: set[str],
+    as_of_date: datetime.date | None = None,
+    progress_callback: ProgressCallback | None = None,
+) -> list[dict]:
     try:
         return _fetch_by_codes(
             entity="FODivision",
@@ -587,10 +588,10 @@ def fetch_fo_division(
 
 
 def fetch_fo_department(
-    codes: Set[str],
-    as_of_date: Optional[datetime.date] = None,
-    progress_callback: Optional[ProgressCallback] = None,
-) -> List[Dict]:
+    codes: set[str],
+    as_of_date: datetime.date | None = None,
+    progress_callback: ProgressCallback | None = None,
+) -> list[dict]:
     # FODepartment exposes its Division link two ways depending on record origin:
     #   - Global/legacy records: "parent" plain scalar string (no expand needed)
     #   - Country-specific records: "cust_Division" navigation property ($expand)
@@ -634,10 +635,10 @@ def fetch_fo_department(
 
 
 def fetch_cust_sub_department(
-    codes: Set[str],
-    as_of_date: Optional[datetime.date] = None,
-    progress_callback: Optional[ProgressCallback] = None,
-) -> List[Dict]:
+    codes: set[str],
+    as_of_date: datetime.date | None = None,
+    progress_callback: ProgressCallback | None = None,
+) -> list[dict]:
     try:
         records = _fetch_by_codes(
             entity="cust_SubDepartment",
@@ -680,10 +681,10 @@ def fetch_cust_sub_department(
 
 
 def fetch_fo_job_code(
-    codes: Set[str],
-    as_of_date: Optional[datetime.date] = None,
-    progress_callback: Optional[ProgressCallback] = None,
-) -> List[Dict]:
+    codes: set[str],
+    as_of_date: datetime.date | None = None,
+    progress_callback: ProgressCallback | None = None,
+) -> list[dict]:
     try:
         return _fetch_by_codes(
             entity="FOJobCode",
@@ -728,9 +729,9 @@ def _job_class_entity(country_code: str) -> str:
 
 def _fetch_cust_job_class(
     entity: str,
-    codes: Set[str],
-    progress_callback: Optional[ProgressCallback] = None,
-) -> List[Dict]:
+    codes: set[str],
+    progress_callback: ProgressCallback | None = None,
+) -> list[dict]:
     """
     Dedicated fetcher for cust_JobClassification* MDF entities (IND, NLD, SWE, etc.).
 
@@ -762,7 +763,7 @@ def _fetch_cust_job_class(
     code_list = sorted(codes)
     total_batches = math.ceil(len(code_list) / _CODE_BATCH_SIZE)
     today = datetime.date.today()
-    all_records: List[Dict] = []
+    all_records: list[dict] = []
 
     for batch_num in range(1, total_batches + 1):
         start_idx = (batch_num - 1) * _CODE_BATCH_SIZE
@@ -799,7 +800,7 @@ def _fetch_cust_job_class(
         all_records.extend(_normalize_record(r) for r in records)
 
     # Keep latest non-future-dated record per job code
-    lookup: Dict[str, Dict] = {}
+    lookup: dict[str, dict] = {}
     for rec in all_records:
         jc_code = rec.get("JobClassification_externalCode")
         if not jc_code:
@@ -850,11 +851,11 @@ def _fetch_cust_job_class(
 
 
 def fetch_fo_job_class_local(
-    codes: Set[str],
+    codes: set[str],
     country_code: str,
-    as_of_date: Optional[datetime.date] = None,
-    progress_callback: Optional[ProgressCallback] = None,
-) -> List[Dict]:
+    as_of_date: datetime.date | None = None,
+    progress_callback: ProgressCallback | None = None,
+) -> list[dict]:
     entity = _job_class_entity(country_code)
     try:
         if entity.startswith("cust_"):
@@ -893,10 +894,10 @@ def fetch_fo_job_class_local(
 
 
 def fetch_fo_job_class_local_can(
-    codes: Set[str],
-    as_of_date: Optional[datetime.date] = None,
-    progress_callback: Optional[ProgressCallback] = None,
-) -> List[Dict]:
+    codes: set[str],
+    as_of_date: datetime.date | None = None,
+    progress_callback: ProgressCallback | None = None,
+) -> list[dict]:
     # Backwards-compatible alias for the default CAN entity.
     return fetch_fo_job_class_local(
         codes, "CAN", as_of_date=as_of_date, progress_callback=progress_callback
@@ -904,10 +905,10 @@ def fetch_fo_job_class_local_can(
 
 
 def fetch_fo_cost_center(
-    codes: Set[str],
-    as_of_date: Optional[datetime.date] = None,
-    progress_callback: Optional[ProgressCallback] = None,
-) -> List[Dict]:
+    codes: set[str],
+    as_of_date: datetime.date | None = None,
+    progress_callback: ProgressCallback | None = None,
+) -> list[dict]:
     try:
         return _fetch_by_codes(
             entity="FOCostCenter",
@@ -940,10 +941,10 @@ def fetch_fo_cost_center(
 
 
 def fetch_fo_location(
-    codes: Set[str],
-    as_of_date: Optional[datetime.date] = None,
-    progress_callback: Optional[ProgressCallback] = None,
-) -> List[Dict]:
+    codes: set[str],
+    as_of_date: datetime.date | None = None,
+    progress_callback: ProgressCallback | None = None,
+) -> list[dict]:
     try:
         return _fetch_by_codes(
             entity="FOLocation",
@@ -989,7 +990,7 @@ def _sf_date_to_odata_key(raw: Any) -> str:
     return f"datetime'{d.isoformat()}T00:00:00'"
 
 
-def _parse_jobcode_subfunction_response(data: Dict[str, Any]) -> Optional[str]:
+def _parse_jobcode_subfunction_response(data: dict[str, Any]) -> str | None:
     """Parse the OData JSON response for a job code's cust_jobsubfunction."""
     if not isinstance(data, dict):
         return None
@@ -1006,9 +1007,9 @@ def _parse_jobcode_subfunction_response(data: Dict[str, Any]) -> Optional[str]:
 
 
 def fetch_jobcode_subfunctions(
-    job_code_records: List[Dict],
-    progress_callback: Optional[ProgressCallback] = None,
-) -> Dict[str, Optional[str]]:
+    job_code_records: list[dict],
+    progress_callback: ProgressCallback | None = None,
+) -> dict[str, str | None]:
     """
     Retrieve the cust_jobsubfunction code for each job code by directly
     accessing the entity-key navigation endpoint:
@@ -1023,6 +1024,7 @@ def fetch_jobcode_subfunctions(
     Calls are issued concurrently (up to 10 threads) to reduce wall-clock time.
     """
     import concurrent.futures
+
     import config
     from api_client import _get_with_retry, fetch_all
 
@@ -1043,14 +1045,14 @@ def fetch_jobcode_subfunctions(
                 "total": total,
             },
         )
-        result: Dict[str, Optional[str]] = {}
+        result: dict[str, str | None] = {}
 
-        def _fetch_one(rec: Dict) -> tuple:
+        def _fetch_one(rec: dict) -> tuple:
             jc_code = rec.get("externalCode")
             if not jc_code:
                 return (None, None)
 
-            def _fetch_via_navprop() -> Optional[str]:
+            def _fetch_via_navprop() -> str | None:
                 start_key = _sf_date_to_odata_key(rec.get("startDate"))
                 url = (
                     f"{config.ODATA_BASE_URL}FOJobCode"
@@ -1060,7 +1062,7 @@ def fetch_jobcode_subfunctions(
                 data = _get_with_retry(url, f"cust_jobsubfunction/{jc_code}")
                 return _parse_jobcode_subfunction_response(data)
 
-            def _fetch_via_expand() -> Optional[str]:
+            def _fetch_via_expand() -> str | None:
                 filter_expr = f"externalCode eq '{_odata_escape(jc_code)}'"
                 records = fetch_all(
                     entity="FOJobCode",
@@ -1153,7 +1155,7 @@ def fetch_jobcode_subfunctions(
 # ---------------------------------------------------------------------------
 
 
-def _fetch_picklist_labels(picklist_id: str) -> Dict[str, str]:
+def _fetch_picklist_labels(picklist_id: str) -> dict[str, str]:
     """
     Fetch all values and their en_US labels for the given SF picklist using
     the PickListValueV2 entity.
@@ -1175,7 +1177,7 @@ def _fetch_picklist_labels(picklist_id: str) -> Dict[str, str]:
             select_fields=["externalCode", "lValue", "label_en_US"],
             filter_expr=f"PickListV2_id eq '{_odata_escape(picklist_id)}'",
         )
-        mapping: Dict[str, str] = {}
+        mapping: dict[str, str] = {}
         for rec in records:
             label = str(rec.get("label_en_US") or "").strip()
             ext_code = str(rec.get("externalCode") or "").strip()
@@ -1201,9 +1203,9 @@ def _fetch_picklist_labels(picklist_id: str) -> Dict[str, str]:
 
 
 def fetch_empjob_for_positions(
-    position_codes: List[str],
-    progress_callback: Optional[ProgressCallback] = None,
-) -> Dict[str, Dict]:
+    position_codes: list[str],
+    progress_callback: ProgressCallback | None = None,
+) -> dict[str, dict]:
     """
     Fetch EmpJob records for the given set of position codes and return a
     dict mapping position_code -> {userId, emplStatus, startDate} for the
@@ -1237,13 +1239,13 @@ def fetch_empjob_for_positions(
     try:
         # Step 1: fetch picklist labels for employee-status so we can translate codes
         print("\n[EmpJob] Fetching employee-status picklist labels...")
-        status_labels: Dict[str, str] = _fetch_picklist_labels("employee-status")
+        status_labels: dict[str, str] = _fetch_picklist_labels("employee-status")
 
         today = datetime.date.today()
         code_list = sorted(set(position_codes))
         total_batches = math.ceil(len(code_list) / _CODE_BATCH_SIZE)
 
-        def _fetch_batch(batch: List[str]) -> List[Dict]:
+        def _fetch_batch(batch: list[str]) -> list[dict]:
             code_clause = " or ".join(
                 f"position eq '{_odata_escape(c)}'" for c in batch
             )
@@ -1275,7 +1277,7 @@ def fetch_empjob_for_positions(
                 result.append(rec)
             return result
 
-        all_records: List[Dict] = []
+        all_records: list[dict] = []
         print(
             f"\n[EmpJob] Fetching EmpJob assignments for {len(code_list)} positions "
             f"({total_batches} batches, parallel)..."
@@ -1320,7 +1322,7 @@ def fetch_empjob_for_positions(
                     )
 
         # For each position keep the record with the most recent startDate ≤ today
-        lookup: Dict[str, Dict] = {}
+        lookup: dict[str, dict] = {}
         for rec in all_records:
             pos_code = rec.get("position")
             if not pos_code:
@@ -1373,9 +1375,9 @@ def fetch_empjob_for_positions(
 
 def run_full_extract(
     country_code: str,
-    as_of_date: Optional[datetime.date] = None,
-    progress_callback: Optional[ProgressCallback] = None,
-) -> Dict[str, int]:
+    as_of_date: datetime.date | None = None,
+    progress_callback: ProgressCallback | None = None,
+) -> dict[str, int]:
     """
     Two-phase extract:
       1. Fetch all active positions for country_code.
@@ -1386,13 +1388,13 @@ def run_full_extract(
     Returns a summary dict with record counts per entity.
     """
     from database import (
+        get_connection,
         init_db,
-        save_positions,
+        mark_extract_complete,
+        save_extract_meta,
         save_foundation,
         save_pipe_sep_junctions,
-        get_connection,
-        save_extract_meta,
-        mark_extract_complete,
+        save_positions,
     )
 
     _emit_progress(

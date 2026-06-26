@@ -8,9 +8,9 @@ Usage:
 Sample queries are printed for each object so you can copy-paste and modify them.
 """
 
+import os
 import sqlite3
 import sys
-import os
 
 DB_PATH = os.path.join("data", "sf_integrity_CA.db")
 

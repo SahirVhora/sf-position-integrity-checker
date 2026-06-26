@@ -69,8 +69,9 @@ def _init_basic_auth(prompt: bool = False):
     HEADERS stays empty; the real credential resolution (and prompt, if a TTY
     user runs the CLI) happens lazily at request time via auth.get_auth_headers.
     """
-    from auth.basic import resolve_basic_credentials
     import base64
+
+    from auth.basic import resolve_basic_credentials
 
     raw_url, username, password, company = resolve_basic_credentials(prompt=prompt)
     if not (username and password):
@@ -353,6 +354,7 @@ def store_credentials_to_keyring(
         store_credentials_to_keyring()
     """
     import getpass
+
     import keyring as _kr
 
     if url is None:
@@ -391,7 +393,7 @@ def _write_env_var(key: str, value: str) -> None:
     env_path = _env_file_path()
     lines = []
     if os.path.exists(env_path):
-        with open(env_path, "r", encoding="utf-8") as fh:
+        with open(env_path, encoding="utf-8") as fh:
             lines = fh.readlines()
     found = False
     for idx, line in enumerate(lines):

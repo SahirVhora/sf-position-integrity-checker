@@ -16,7 +16,6 @@ import sys
 sys.path.insert(0, os.path.dirname(__file__))
 
 import pytest
-
 from auth.basic import get_basic_auth_headers, resolve_basic_credentials
 
 _SF_VARS = (

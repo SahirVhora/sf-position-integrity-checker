@@ -13,6 +13,9 @@ import traceback
 import uuid
 from datetime import date, datetime
 
+import config
+import database
+from fetchers import run_full_extract
 from flask import (
     Flask,
     abort,
@@ -23,10 +26,6 @@ from flask import (
     session,
     url_for,
 )
-
-import config
-import database
-from fetchers import run_full_extract
 from main import _do_validate
 
 BASE_DIR = os.path.dirname(__file__)

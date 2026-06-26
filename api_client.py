@@ -8,11 +8,11 @@ Public API preserved for backward compatibility.
 from __future__ import annotations
 
 import logging
-from typing import Any, Dict, List, Optional
+from typing import Any
+
+import config
 
 from sapsf_shared import AuthConfig, SFClient, SFClientError
-from auth import get_auth_headers
-import config
 
 logger = logging.getLogger(__name__)
 
@@ -41,9 +41,9 @@ def _get_client() -> SFClient:
     return SFClient(cfg, default_top=config.PAGE_SIZE)
 
 
-def _build_url(entity: str, params: Dict[str, str]) -> str:
+def _build_url(entity: str, params: dict[str, str]) -> str:
     """Construct the full OData v2 URL with query parameters.
-    
+
     Preserved for backward compatibility. New code should use SFClient directly.
     """
     from urllib.parse import urlencode
@@ -52,7 +52,7 @@ def _build_url(entity: str, params: Dict[str, str]) -> str:
     return f"{config.ODATA_BASE_URL}{entity}?{query_string}"
 
 
-def _get_with_retry(url: str, entity: str) -> Dict[str, Any]:
+def _get_with_retry(url: str, entity: str) -> dict[str, Any]:
     """Perform a GET request with retry on 5xx / timeout.
 
     Now delegates to sapsf_shared.SFClient internals for consistent retry behaviour.
@@ -80,10 +80,10 @@ def _get_with_retry(url: str, entity: str) -> Dict[str, Any]:
 
 def fetch_all(
     entity: str,
-    select_fields: Optional[List[str]] = None,
-    filter_expr: Optional[str] = None,
-    expand_fields: Optional[List[str]] = None,
-) -> List[Dict[str, Any]]:
+    select_fields: list[str] | None = None,
+    filter_expr: str | None = None,
+    expand_fields: list[str] | None = None,
+) -> list[dict[str, Any]]:
     """Fetch all records for an OData entity with automatic pagination.
 
     Now backed by sapsf_shared.SFClient.get() for consistent pagination,

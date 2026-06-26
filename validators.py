@@ -15,7 +15,7 @@ false existence errors are raised.
 import datetime
 import os
 import re
-from typing import Any, Dict, List, Optional, Set
+from typing import Any
 
 import yaml
 
@@ -27,24 +27,24 @@ _RULES_PATH = os.path.join(
     os.path.dirname(os.path.abspath(__file__)), "config", "rules.yaml"
 )
 
-with open(_RULES_PATH, "r", encoding="utf-8") as _f:
+with open(_RULES_PATH, encoding="utf-8") as _f:
     _rules_data = yaml.safe_load(_f)
 
-_ALL_RULES: List[Dict[str, Any]] = _rules_data.get("rules", [])
-_ENABLED_RULES: List[Dict[str, Any]] = [r for r in _ALL_RULES if r.get("enabled", True)]
+_ALL_RULES: list[dict[str, Any]] = _rules_data.get("rules", [])
+_ENABLED_RULES: list[dict[str, Any]] = [r for r in _ALL_RULES if r.get("enabled", True)]
 
 
 # CHECK_META is built dynamically from the YAML so reporters can consume it
 # without knowing the rule definitions themselves.
 # 'field' uses position_field (the SF field being validated on the position).
-def _failed_field(rule: Dict[str, Any]) -> str:
+def _failed_field(rule: dict[str, Any]) -> str:
     """Return the position field that should be reported as failing."""
     if rule.get("type") == "scalar_match" and rule.get("compare_to_position_field"):
         return rule["compare_to_position_field"]
     return rule["position_field"]
 
 
-CHECK_META: Dict[str, Dict[str, str]] = {
+CHECK_META: dict[str, dict[str, str]] = {
     rule["id"]: {
         "category": rule["category"],
         "field": _failed_field(rule),
@@ -61,7 +61,7 @@ CHECK_META: Dict[str, Dict[str, str]] = {
 # ---------------------------------------------------------------------------
 
 
-def _val(record: Dict[str, Any], field: str) -> Optional[str]:
+def _val(record: dict[str, Any], field: str) -> str | None:
     """Return stripped string value or None if absent/blank."""
     v = record.get(field)
     if v is None:
@@ -70,12 +70,12 @@ def _val(record: Dict[str, Any], field: str) -> Optional[str]:
     return s if s else None
 
 
-def _set_display(codes: Set[str]) -> str:
+def _set_display(codes: set[str]) -> str:
     """Format a set of codes as a pipe-separated string for error messages."""
     return "|".join(sorted(codes)) if codes else "(none)"
 
 
-def _parse_date(raw: Any) -> Optional[datetime.date]:
+def _parse_date(raw: Any) -> datetime.date | None:
     """Parse SF-like date strings to date (YYYY-MM-DD, ISO datetime, /Date(...)/)."""
     if raw is None:
         return None
@@ -109,7 +109,7 @@ def _parse_date(raw: Any) -> Optional[datetime.date]:
     return None
 
 
-def _is_active_on_date(record: Dict[str, Any], as_of_date: datetime.date) -> bool:
+def _is_active_on_date(record: dict[str, Any], as_of_date: datetime.date) -> bool:
     """Return True when record is effective and has active status on as_of_date."""
     start = _parse_date(record.get("startDate"))
     end = _parse_date(record.get("endDate")) or datetime.date(9999, 12, 31)
@@ -117,7 +117,7 @@ def _is_active_on_date(record: Dict[str, Any], as_of_date: datetime.date) -> boo
     return (start is not None) and (start <= as_of_date <= end) and status == "A"
 
 
-def _issue(pos: Dict[str, Any], check_id: str, description: str) -> Dict[str, Any]:
+def _issue(pos: dict[str, Any], check_id: str, description: str) -> dict[str, Any]:
     meta = CHECK_META[check_id]
     return {
         "Position ID": _val(pos, "code") or "",
@@ -147,16 +147,16 @@ def _issue(pos: Dict[str, Any], check_id: str, description: str) -> Dict[str, An
 
 
 def _run_scalar_match(
-    pos: Dict[str, Any],
-    rule: Dict[str, Any],
-    lookups: Dict[str, Any],
-) -> Optional[Dict[str, Any]]:
+    pos: dict[str, Any],
+    rule: dict[str, Any],
+    lookups: dict[str, Any],
+) -> dict[str, Any] | None:
     """Execute a scalar_match rule against one position."""
     p_key_val = _val(pos, rule["position_field"])
     if not p_key_val:
         return None
 
-    lookup_dict: Dict = lookups.get(rule["lookup_key"], {})
+    lookup_dict: dict = lookups.get(rule["lookup_key"], {})
     lookup_rec = lookup_dict.get(p_key_val)
     if lookup_rec is None:
         return None  # not fetched - skip silently to avoid false positives
@@ -187,21 +187,21 @@ def _run_scalar_match(
 
 
 def _run_set_membership(
-    pos: Dict[str, Any],
-    rule: Dict[str, Any],
-    lookups: Dict[str, Any],
-) -> Optional[Dict[str, Any]]:
+    pos: dict[str, Any],
+    rule: dict[str, Any],
+    lookups: dict[str, Any],
+) -> dict[str, Any] | None:
     """Execute a set_membership rule against one position."""
     p_key_val = _val(pos, rule["position_field"])
     if not p_key_val:
         return None
 
-    lookup_dict: Dict = lookups.get(rule["lookup_key"], {})
+    lookup_dict: dict = lookups.get(rule["lookup_key"], {})
     if p_key_val not in lookup_dict:
         return None  # not fetched - skip silently
 
-    junction: Dict[str, Set] = lookups.get(rule["junction_lookup_key"], {})
-    allowed_set: Set = junction.get(p_key_val, set())
+    junction: dict[str, set] = lookups.get(rule["junction_lookup_key"], {})
+    allowed_set: set = junction.get(p_key_val, set())
     cmp_val = _val(pos, rule["compare_to_position_field"])
 
     if cmp_val is not None and cmp_val not in allowed_set:
@@ -216,18 +216,18 @@ def _run_set_membership(
 
 
 def _run_foundation_active(
-    pos: Dict[str, Any],
-    rule: Dict[str, Any],
-    lookups: Dict[str, Any],
+    pos: dict[str, Any],
+    rule: dict[str, Any],
+    lookups: dict[str, Any],
     as_of_date: datetime.date,
-) -> Optional[Dict[str, Any]]:
+) -> dict[str, Any] | None:
     """Ensure the referenced foundation record is active on as_of_date."""
     position_field = rule["position_field"]
     code = _val(pos, position_field)
     if not code:
         return None
 
-    lookup_dict: Dict[str, Dict[str, Any]] = lookups.get(rule["lookup_key"], {})
+    lookup_dict: dict[str, dict[str, Any]] = lookups.get(rule["lookup_key"], {})
     rec = lookup_dict.get(code)
 
     if rec is None:
@@ -258,10 +258,10 @@ def _run_foundation_active(
 
 
 def validate_positions(
-    positions: List[Dict[str, Any]],
-    lookups: Dict[str, Any],
-    as_of_date: Optional[datetime.date] = None,
-) -> List[Dict[str, Any]]:
+    positions: list[dict[str, Any]],
+    lookups: dict[str, Any],
+    as_of_date: datetime.date | None = None,
+) -> list[dict[str, Any]]:
     """
     Run all enabled rules from config/rules.yaml against every position.
     Returns a flat list of issue dicts (one per failed check per position).
@@ -269,7 +269,7 @@ def validate_positions(
     Supports rule types: scalar_match, set_membership.
     Rules with enabled: false are completely skipped.
     """
-    issues: List[Dict[str, Any]] = []
+    issues: list[dict[str, Any]] = []
     target_date = as_of_date or datetime.date.today()
 
     # Pre-enrich each position with the current employee assignment so that
@@ -307,7 +307,7 @@ def validate_positions(
 # ---------------------------------------------------------------------------
 
 
-def build_lookups_from_db() -> Dict[str, Any]:
+def build_lookups_from_db() -> dict[str, Any]:
     """
     Load all foundation object tables from the local SQLite database and
     return them in the same structure expected by validate_positions().
@@ -317,11 +317,11 @@ def build_lookups_from_db() -> Dict[str, Any]:
     """
     from database import load_table
 
-    def to_lookup(table_name: str) -> Dict[str, Dict]:
+    def to_lookup(table_name: str) -> dict[str, dict]:
         return {r["externalCode"]: r for r in load_table(table_name)}
 
-    def to_set_lookup(table_name: str, key_col: str, val_col: str) -> Dict[str, set]:
-        result: Dict[str, set] = {}
+    def to_set_lookup(table_name: str, key_col: str, val_col: str) -> dict[str, set]:
+        result: dict[str, set] = {}
         for row in load_table(table_name):
             k = row.get(key_col)
             v = row.get(val_col)

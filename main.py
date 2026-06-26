@@ -14,7 +14,7 @@ import datetime
 import sys
 
 import database
-from reporters import VERSION, GITHUB_URL
+from reporters import GITHUB_URL, VERSION
 
 # ---------------------------------------------------------------------------
 # UI helpers
@@ -104,9 +104,9 @@ def _pick_mode() -> int:
 def _do_validate(country: str, as_of_date: datetime.date | None = None) -> None:
     """Load positions + lookups from DB, run validation, write all reports."""
     import config
-    from database import load_table, get_latest_extract_meta, save_validation_results
-    from validators import validate_positions, build_lookups_from_db
+    from database import get_latest_extract_meta, load_table, save_validation_results
     from reporters import write_all_reports
+    from validators import build_lookups_from_db, validate_positions
 
     meta = get_latest_extract_meta()
     if meta is None:

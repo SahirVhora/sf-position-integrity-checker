@@ -16,14 +16,14 @@ Usage:
 
 import datetime
 import os
-import sys
 import sqlite3
+import sys
 
 # Ensure imports work from project root
 sys.path.insert(0, os.path.dirname(__file__))
 
 import database as db
-from validators import validate_positions, build_lookups_from_db
+from validators import build_lookups_from_db, validate_positions
 
 # ---------------------------------------------------------------------------
 # Helpers

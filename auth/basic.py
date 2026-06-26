@@ -9,12 +9,11 @@ Credential resolution order:
 
 import base64
 import os
-from typing import Optional, Tuple
 
 _KEYRING_SERVICE = "sf_position_integrity_checker"
 
 
-def _try_keyring() -> Tuple[Optional[str], Optional[str], Optional[str], Optional[str]]:
+def _try_keyring() -> tuple[str | None, str | None, str | None, str | None]:
     """Try to load credentials from the OS keyring. Returns (url, username, password, company_id)."""
     try:
         import keyring
@@ -28,7 +27,7 @@ def _try_keyring() -> Tuple[Optional[str], Optional[str], Optional[str], Optiona
         return None, None, None, None
 
 
-def _prompt_credentials() -> Tuple[str, str, str, str]:
+def _prompt_credentials() -> tuple[str, str, str, str]:
     """Interactively prompt for credentials and offer to save to keyring."""
     import getpass
 
@@ -81,8 +80,8 @@ def _prompt_credentials() -> Tuple[str, str, str, str]:
     return url, username, password, company
 
 
-def _try_file_creds() -> Tuple[
-    Optional[str], Optional[str], Optional[str], Optional[str]
+def _try_file_creds() -> tuple[
+    str | None, str | None, str | None, str | None
 ]:
     """Try to load credentials from the file-based fallback."""
     import json
@@ -102,7 +101,7 @@ def _try_file_creds() -> Tuple[
         return None, None, None, None
 
 
-def resolve_basic_credentials(prompt: bool = True) -> Tuple[str, str, str, str]:
+def resolve_basic_credentials(prompt: bool = True) -> tuple[str, str, str, str]:
     """
     Resolve (odata_base_url, username, password, company_id) from the first
     available source: .env → keyring → file fallback → interactive prompt.

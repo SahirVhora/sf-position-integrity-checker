@@ -2,9 +2,10 @@
 auth/__init__.py - Auth method dispatcher for SF Position Integrity Checker.
 """
 
+import config
+
 from auth.basic import get_basic_auth_headers
 from auth.oauth2 import get_oauth2_headers
-import config
 
 
 def get_auth_headers() -> dict:

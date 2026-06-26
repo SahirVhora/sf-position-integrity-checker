@@ -7,11 +7,11 @@ import json
 import os
 import re
 from collections import Counter
-from typing import Any, Dict, List
+from typing import Any
 
-import pandas as pd
 import openpyxl
-from openpyxl.styles import Font, PatternFill, Alignment
+import pandas as pd
+from openpyxl.styles import Alignment, Font, PatternFill
 from openpyxl.utils import get_column_letter
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -78,7 +78,7 @@ def _fmt_date(raw: Any) -> str:
         return s
 
 
-def _normalise_dates(issues: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+def _normalise_dates(issues: list[dict[str, Any]]) -> list[dict[str, Any]]:
     """Return a copy of issues with Effective Start Date formatted as MM/DD/YYYY."""
     out = []
     for row in issues:
@@ -88,7 +88,7 @@ def _normalise_dates(issues: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
     return out
 
 
-def _visible_issues(issues: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+def _visible_issues(issues: list[dict[str, Any]]) -> list[dict[str, Any]]:
     """Return only issues whose rule has visible: true (default)."""
     from validators import CHECK_META
 
@@ -99,7 +99,7 @@ def _visible_issues(issues: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
     ]
 
 
-def _df_from_issues(issues: List[Dict[str, Any]]) -> pd.DataFrame:
+def _df_from_issues(issues: list[dict[str, Any]]) -> pd.DataFrame:
     normalised = _normalise_dates(issues)
     if normalised:
         return pd.DataFrame(normalised, columns=COLUMNS)
@@ -129,16 +129,16 @@ def _instance_name(tenant_url: str, instance_id: str = "") -> str:
 
 
 def build_findings_document(
-    issues: List[Dict[str, Any]],
+    issues: list[dict[str, Any]],
     total_positions: int,
     country: str = "CA",
     tenant_url: str = "",
     as_of_date: datetime.date | None = None,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Build the SF Compass suite findings document (sf-compass-findings/v1)."""
     normalised = _normalise_dates(issues)
     findings = []
-    by_severity: Dict[str, int] = {}
+    by_severity: dict[str, int] = {}
     for issue in normalised:
         severity = str(issue.get("Severity", "")).strip().lower() or "info"
         by_severity[severity] = by_severity.get(severity, 0) + 1
@@ -180,7 +180,7 @@ def build_findings_document(
 
 
 def write_findings_json(
-    issues: List[Dict[str, Any]],
+    issues: list[dict[str, Any]],
     total_positions: int,
     country: str = "CA",
     tenant_url: str = "",
@@ -200,7 +200,7 @@ def write_findings_json(
     return path
 
 
-def write_csv(issues: List[Dict[str, Any]], country: str = "CA") -> str:
+def write_csv(issues: list[dict[str, Any]], country: str = "CA") -> str:
     _ensure_output_dir()
     path = os.path.join(OUTPUT_DIR, f"position_integrity_{country}_{_datestamp()}.csv")
     df = _df_from_issues(issues)
@@ -215,7 +215,7 @@ def write_csv(issues: List[Dict[str, Any]], country: str = "CA") -> str:
 
 
 def write_excel(
-    issues: List[Dict[str, Any]],
+    issues: list[dict[str, Any]],
     total_positions: int,
     country: str = "CA",
     tenant_url: str = "",
@@ -257,7 +257,7 @@ def _header_cell(ws, row: int, col: int, value: str) -> None:
     cell.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
 
 
-def _build_issues_sheet(ws, issues: List[Dict[str, Any]]) -> None:
+def _build_issues_sheet(ws, issues: list[dict[str, Any]]) -> None:
     for col_idx, col_name in enumerate(COLUMNS, start=1):
         _header_cell(ws, 1, col_idx, col_name)
 
@@ -282,7 +282,7 @@ def _build_issues_sheet(ws, issues: List[Dict[str, Any]]) -> None:
 
 def _build_summary_sheet(
     ws,
-    issues: List[Dict[str, Any]],
+    issues: list[dict[str, Any]],
     total_positions: int,
     country: str,
     tenant_url: str = "",
@@ -363,7 +363,7 @@ def _build_summary_sheet(
 
 
 def write_html(
-    issues: List[Dict[str, Any]],
+    issues: list[dict[str, Any]],
     total_positions: int,
     country: str = "CA",
     tenant_url: str = "",
@@ -382,7 +382,7 @@ def write_html(
 
 
 def _build_html(
-    issues: List[Dict[str, Any]],
+    issues: list[dict[str, Any]],
     total_positions: int,
     country: str,
     tenant_url: str = "",
@@ -747,7 +747,7 @@ function sortTable(col) {{
 
 
 def print_console_summary(
-    issues: List[Dict[str, Any]],
+    issues: list[dict[str, Any]],
     total_positions: int,
     country: str,
     as_of_date: datetime.date | None = None,
@@ -807,7 +807,7 @@ ISSUE_OWNERS = {
 }
 
 
-def _owner_for_issue(issue: Dict[str, Any]) -> str:
+def _owner_for_issue(issue: dict[str, Any]) -> str:
     text = " ".join(
         str(issue.get(k, "")).lower()
         for k in ("Check Category", "Failed Field", "Issue Description", "Check ID")
@@ -818,13 +818,13 @@ def _owner_for_issue(issue: Dict[str, Any]) -> str:
     return "Position data owner"
 
 
-def _fix_action(issue: Dict[str, Any]) -> str:
+def _fix_action(issue: dict[str, Any]) -> str:
     field = issue.get("Failed Field") or "Position field"
     check_id = issue.get("Check ID") or "rule"
     return f"Review {field} for {check_id} and update the source position record or related foundation object."
 
 
-def write_fix_pack(issues: List[Dict[str, Any]], country: str = "CA") -> str:
+def write_fix_pack(issues: list[dict[str, Any]], country: str = "CA") -> str:
     """Write suggested correction templates and ownership by issue type."""
     _ensure_output_dir()
     path = os.path.join(
@@ -872,18 +872,18 @@ def write_fix_pack(issues: List[Dict[str, Any]], country: str = "CA") -> str:
 
 
 def write_run_manifest(
-    issues: List[Dict[str, Any]],
+    issues: list[dict[str, Any]],
     total_positions: int,
     country: str,
     tenant_url: str = "",
-    checks_disabled: List[str] = None,
+    checks_disabled: list[str] = None,
     as_of_date: datetime.date | None = None,
 ) -> str:
     """Write output/run_manifest.json after every validation run."""
     _ensure_output_dir()
     path = os.path.join(OUTPUT_DIR, "run_manifest.json")
 
-    from validators import _ENABLED_RULES, _ALL_RULES
+    from validators import _ALL_RULES, _ENABLED_RULES
 
     checks_run = sorted(r["id"] for r in _ENABLED_RULES)
     all_check_ids = {r["id"] for r in _ALL_RULES}
@@ -937,7 +937,7 @@ def write_report_meta(country: str, instance_id: str) -> None:
 
 
 def write_all_reports(
-    issues: List[Dict[str, Any]],
+    issues: list[dict[str, Any]],
     total_positions: int,
     country: str = "CA",
     tenant_url: str = "",

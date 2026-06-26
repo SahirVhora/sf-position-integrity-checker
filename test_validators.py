@@ -33,14 +33,14 @@ class TestParseDate:
     def test_sf_epoch_millis(self):
         # 2021-01-01 UTC in epoch millis.
         ms = int(
-            datetime.datetime(2021, 1, 1, tzinfo=datetime.timezone.utc).timestamp()
+            datetime.datetime(2021, 1, 1, tzinfo=datetime.UTC).timestamp()
             * 1000
         )
         assert _parse_date(f"/Date({ms})/") == datetime.date(2021, 1, 1)
 
     def test_sf_epoch_with_offset_suffix(self):
         ms = int(
-            datetime.datetime(2021, 1, 1, tzinfo=datetime.timezone.utc).timestamp()
+            datetime.datetime(2021, 1, 1, tzinfo=datetime.UTC).timestamp()
             * 1000
         )
         # SF often appends a timezone offset, e.g. /Date(1609459200000+0000)/

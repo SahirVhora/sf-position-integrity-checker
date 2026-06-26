@@ -1,7 +1,7 @@
 """pytest session fixture: initialise a temp SQLite DB before schema tests run."""
 
-import pytest
 import database as db
+import pytest
 
 
 @pytest.fixture(autouse=True, scope="session")

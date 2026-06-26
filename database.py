@@ -17,7 +17,7 @@ import os
 import re as _re
 import sqlite3
 from datetime import date, datetime, timedelta
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 DB_DIR = "data"
 DB_PATH = os.path.join(DB_DIR, "sf_integrity_CA.db")
@@ -311,7 +311,7 @@ WHERE p.company IS NOT NULL AND p.company != ''
 
 # Ordered column lists per table - used for INSERT statements.
 # Junction tables are handled separately via save_pipe_sep_junctions().
-_TABLE_COLS: Dict[str, List[str]] = {
+_TABLE_COLS: dict[str, list[str]] = {
     "positions": [
         "code",
         "externalName_en_US",
@@ -528,8 +528,8 @@ def _norm_val(col: str, raw: Any) -> str:
 def _bulk_insert(
     conn: sqlite3.Connection,
     table: str,
-    cols: List[str],
-    records: List[Dict[str, Any]],
+    cols: list[str],
+    records: list[dict[str, Any]],
 ) -> None:
     if not records:
         return
@@ -541,7 +541,7 @@ def _bulk_insert(
     conn.commit()
 
 
-def save_positions(records: List[Dict[str, Any]]) -> None:
+def save_positions(records: list[dict[str, Any]]) -> None:
     conn = get_connection()
     try:
         _bulk_insert(conn, "positions", _TABLE_COLS["positions"], records)
@@ -549,7 +549,7 @@ def save_positions(records: List[Dict[str, Any]]) -> None:
         conn.close()
 
 
-def save_foundation(table_name: str, records: List[Dict[str, Any]]) -> None:
+def save_foundation(table_name: str, records: list[dict[str, Any]]) -> None:
     cols = _TABLE_COLS.get(table_name)
     if cols is None:
         raise ValueError(f"Unknown foundation table: {table_name}")
@@ -564,7 +564,7 @@ def save_pipe_sep_junctions(
     junction_table: str,
     parent_col: str,
     child_col: str,
-    records: List[Dict[str, Any]],
+    records: list[dict[str, Any]],
     source_field: str,
 ) -> None:
     """
@@ -604,13 +604,13 @@ def save_pipe_sep_junctions(
 
 
 def save_validation_results(
-    results: List[Dict[str, Any]],
+    results: list[dict[str, Any]],
     run_timestamp: str,
     meta_id: int,
 ) -> None:
     db_records = []
     for r in results:
-        row: Dict[str, Any] = {
+        row: dict[str, Any] = {
             "run_timestamp": run_timestamp,
             "extract_meta_id": meta_id,
         }
@@ -629,7 +629,7 @@ def save_validation_results(
 # ---------------------------------------------------------------------------
 
 
-def load_table(table_name: str) -> List[Dict[str, Any]]:
+def load_table(table_name: str) -> list[dict[str, Any]]:
     """Load all rows from a table as a list of plain dicts."""
     _validate_table_name(table_name)
     conn = get_connection(read_only=True)
@@ -672,7 +672,7 @@ def mark_extract_complete(meta_id: int) -> None:
         conn.close()
 
 
-def get_latest_extract_meta() -> Optional[Dict[str, Any]]:
+def get_latest_extract_meta() -> dict[str, Any] | None:
     try:
         conn = get_connection(read_only=True)
     except FileNotFoundError:
