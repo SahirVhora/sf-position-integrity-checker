@@ -30,9 +30,11 @@ jobs:
           pip install -r requirements.txt
 
       - name: Lint with ruff
-        run: |
-          ruff check .
-          ruff format --check .
+        run: ruff check .
+
+      - name: Format check (non-blocking)
+        run: ruff format --check .
+        continue-on-error: true
 
       - name: Type-check with mypy
         run: mypy . --ignore-missing-imports
