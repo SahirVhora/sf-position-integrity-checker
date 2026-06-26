@@ -4,6 +4,7 @@ web_ui.py - lightweight Flask frontend for SF Position Integrity Checker.
 Run this frontend from the repository root, then open http://127.0.0.1:5000/ in a browser.
 """
 
+import contextlib
 import glob
 import os
 import re
@@ -434,7 +435,7 @@ def auth_config_clear():
     try:
         import keyring as _kr
 
-        _KEYRING_SERVICE = "sf_position_integrity_checker"
+        _KEYRING_SERVICE = "sf_position_integrity_checker"  # noqa: N806
         for key in (
             "auth_method",
             "base_url",
@@ -446,16 +447,12 @@ def auth_config_clear():
             "token_url",
             "private_key_path",
         ):
-            try:
+            with contextlib.suppress(Exception):
                 _kr.delete_password(_KEYRING_SERVICE, key)
-            except Exception:
-                pass
     except Exception:
         pass
-    try:
+    with contextlib.suppress(Exception):
         config._save_file_creds({})
-    except Exception:
-        pass
     return jsonify({"status": "cleared"})
 
 

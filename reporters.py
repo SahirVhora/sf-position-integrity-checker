@@ -343,7 +343,7 @@ def _build_summary_sheet(
         for c in range(1, 5):
             ws.cell(row=row, column=c).fill = row_fill
 
-    for col, width in zip("ABCD", [12, 45, 12, 8]):
+    for col, width in zip("ABCD", [12, 45, 12, 8], strict=False):  # noqa: B905
         ws.column_dimensions[col].width = width
 
     ws.freeze_panes = "A2"

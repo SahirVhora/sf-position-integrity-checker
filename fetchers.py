@@ -9,6 +9,7 @@ Phase 3 : Fetch ONLY the referenced foundation records in batches of 50 codes
 All fetched data is saved to the local SQLite database via database.py.
 """
 
+import contextlib
 import datetime
 import logging
 import math
@@ -57,10 +58,8 @@ def _deferred_code(value: Any) -> str | None:
 
 def _emit_progress(callback: ProgressCallback | None, event: dict[str, Any]) -> None:
     if callback:
-        try:
+        with contextlib.suppress(Exception):
             callback(event)
-        except Exception:
-            pass
 
 
 def _normalize_record(record: dict) -> dict:
@@ -1068,7 +1067,7 @@ def fetch_jobcode_subfunctions(
                 jc_code, sub_code = future.result()
                 if jc_code:
                     result[jc_code] = sub_code
-                done += 1
+                done += 1  # noqa: SIM113
                 if done % 50 == 0 or done == total:
                     found = sum(1 for v in result.values() if v)
                     print(f"  ... {done}/{total} processed - {found} sub functions found so far")
@@ -1260,7 +1259,7 @@ def fetch_empjob_for_positions(
             done = 0
             for future in concurrent.futures.as_completed(future_to_num):
                 all_records.extend(future.result())
-                done += 1
+                done += 1  # noqa: SIM113
                 if done % 10 == 0 or done == total_batches:
                     print(f"  ... {done}/{total_batches} EmpJob batches complete")
                     _emit_progress(

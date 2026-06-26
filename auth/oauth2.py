@@ -73,7 +73,7 @@ def _build_saml_assertion(vars: dict) -> bytes:
     assertion_id = f"_{uuid.uuid4()}"
 
     # XML namespaces
-    SAML = "urn:oasis:names:tc:SAML:2.0:assertion"
+    SAML = "urn:oasis:names:tc:SAML:2.0:assertion"  # noqa: N806
     nsmap = {"saml": SAML}
 
     assertion = etree.Element(f"{{{SAML}}}Assertion", nsmap=nsmap)
