@@ -1,85 +1,81 @@
 """
 api_client.py - OData v2 API client with pagination, retry, and error handling.
+
+Now backed by sapsf_shared.SFClient for consistent retry/pagination/auth.
+Public API preserved for backward compatibility.
 """
 
-import time
+from __future__ import annotations
+
+import logging
 from typing import Any, Dict, List, Optional
-from urllib.parse import urlencode
 
-import requests
-
-import config
+from sapsf_shared import AuthConfig, SFClient, SFClientError
 from auth import get_auth_headers
+import config
+
+logger = logging.getLogger(__name__)
+
+
+def _build_auth_config() -> AuthConfig:
+    """Build an AuthConfig from the current config state."""
+    cfg = AuthConfig(
+        base_url=config.SF_BASE_URL,
+        username=config.SF_USERNAME,
+        password=config.SF_PASSWORD,
+        company_id=config.SF_INSTANCE_ID,
+        auth_type=config.AUTH_METHOD,
+        timeout_sec=60,
+    )
+    if config.AUTH_METHOD == "oauth2":
+        cfg.client_id = config.OAUTH2_CLIENT_ID
+        cfg.client_secret = ""  # SF PIC uses JWT, not client_secret
+        cfg.company_id = config.OAUTH2_COMPANY_ID
+        cfg.token_url = config.OAUTH2_TOKEN_URL
+    return cfg
+
+
+def _get_client() -> SFClient:
+    """Create an SFClient from current config. Reuse where possible."""
+    cfg = _build_auth_config()
+    return SFClient(cfg, default_top=config.PAGE_SIZE)
 
 
 def _build_url(entity: str, params: Dict[str, str]) -> str:
-    """Construct the full OData v2 URL with query parameters."""
+    """Construct the full OData v2 URL with query parameters.
+    
+    Preserved for backward compatibility. New code should use SFClient directly.
+    """
+    from urllib.parse import urlencode
     params["$format"] = "json"
     query_string = urlencode(params, safe="$,'() ")
     return f"{config.ODATA_BASE_URL}{entity}?{query_string}"
 
 
 def _get_with_retry(url: str, entity: str) -> Dict[str, Any]:
+    """Perform a GET request with retry on 5xx / timeout.
+
+    Now delegates to sapsf_shared.SFClient internals for consistent retry behaviour.
+    Preserved for backward compatibility.
     """
-    Perform a GET request with exponential backoff retry on 5xx / timeout.
-    Raises on 401 / 403 with a clear message.
-    """
-    delays = [2, 4, 8]
-    last_exc: Optional[Exception] = None
-
-    for attempt, delay in enumerate(delays, start=1):
-        try:
-            response = requests.get(
-                url,
-                headers={
-                    **get_auth_headers(),
-                    "Accept": "application/json",
-                    "Content-Type": "application/json",
-                },
-                timeout=60,
-            )
-
-            if response.status_code == 401:
-                raise RuntimeError(
-                    "Authentication failed - check SF_INSTANCE_ID, SF_USERNAME "
-                    "and SF_PASSWORD in .env"
-                )
-            if response.status_code == 403:
-                raise RuntimeError(
-                    f"Access denied on {entity} - check API user permissions"
-                )
-            if response.status_code >= 500:
-                print(
-                    f"  [WARN] Server error {response.status_code} on {entity} "
-                    f"(attempt {attempt}/{len(delays)}), retrying in {delay}s..."
-                )
-                last_exc = RuntimeError(f"HTTP {response.status_code} from {entity}")
-                time.sleep(delay)
-                continue
-
-            response.raise_for_status()
-            return response.json()
-
-        except requests.exceptions.Timeout:
-            print(
-                f"  [WARN] Timeout on {entity} "
-                f"(attempt {attempt}/{len(delays)}), retrying in {delay}s..."
-            )
-            last_exc = TimeoutError(f"Request timed out for {entity}")
-            time.sleep(delay)
-        except RuntimeError:
-            raise
-        except requests.exceptions.RequestException as exc:
-            last_exc = exc
-            print(
-                f"  [WARN] Request error on {entity}: {exc} "
-                f"(attempt {attempt}/{len(delays)}), retrying in {delay}s..."
-            )
-            time.sleep(delay)
-
-    raise RuntimeError(
-        f"Failed to fetch {entity} after {len(delays)} attempts. Last error: {last_exc}"
-    )
+    try:
+        client = _get_client()
+        resp = client._request_with_retry("GET", url)
+        client._check_response(resp, url)
+        return resp.json()
+    except SFClientError as exc:
+        if exc.status_code == 401:
+            raise RuntimeError(
+                "Authentication failed - check SF_INSTANCE_ID, SF_USERNAME "
+                "and SF_PASSWORD in .env"
+            ) from exc
+        if exc.status_code == 403:
+            raise RuntimeError(
+                f"Access denied on {entity} - check API user permissions"
+            ) from exc
+        raise RuntimeError(
+            f"Failed to fetch {entity}: {exc}"
+        ) from exc
 
 
 def fetch_all(
@@ -88,51 +84,34 @@ def fetch_all(
     filter_expr: Optional[str] = None,
     expand_fields: Optional[List[str]] = None,
 ) -> List[Dict[str, Any]]:
-    """
-    Fetch all records for an OData entity with automatic pagination.
+    """Fetch all records for an OData entity with automatic pagination.
 
-    expand_fields: navigation properties to $expand (e.g. ["cust_legalEntity"]).
-                   These return as inline nested objects rather than __deferred links.
+    Now backed by sapsf_shared.SFClient.get() for consistent pagination,
+    retry, and error handling.
 
+    expand_fields: navigation properties to $expand
     Returns a flat list of record dicts.
     """
-    all_records: List[Dict[str, Any]] = []
-    page = 1
-    skip = 0
-
-    while True:
-        params: Dict[str, str] = {
-            "$top": str(config.PAGE_SIZE),
-            "$skip": str(skip),
-        }
-        if select_fields:
-            # OData v2: expanded nav props must also appear in $select to be returned
-            if expand_fields:
-                combined = list(select_fields) + [
-                    f for f in expand_fields if f not in select_fields
-                ]
-                params["$select"] = ",".join(combined)
-            else:
-                params["$select"] = ",".join(select_fields)
-        if filter_expr:
-            params["$filter"] = filter_expr
-        if expand_fields:
-            params["$expand"] = ",".join(expand_fields)
-
-        url = _build_url(entity, params)
-        data = _get_with_retry(url, entity)
-
-        # OData v2 wraps results in d.results
-        results = data.get("d", {}).get("results", [])
-        count = len(results)
-
-        print(f"  Fetching {entity} (page {page})... got {count} records")
-        all_records.extend(results)
-
-        if count < config.PAGE_SIZE:
-            break
-
-        skip += config.PAGE_SIZE
-        page += 1
-
-    return all_records
+    try:
+        client = _get_client()
+        records = client.get(
+            entity,
+            top=config.PAGE_SIZE,
+            select=select_fields,
+            expand=expand_fields,
+            filter_expr=filter_expr,
+        )
+        logger.info("Fetched %d records from %s", len(records), entity)
+        return records
+    except SFClientError as exc:
+        if exc.status_code == 401:
+            raise RuntimeError(
+                "Authentication failed - check SF credentials in .env"
+            ) from exc
+        if exc.status_code == 403:
+            raise RuntimeError(
+                f"Access denied on {entity} - check API user permissions"
+            ) from exc
+        raise RuntimeError(
+            f"Failed to fetch {entity}: {exc}"
+        ) from exc

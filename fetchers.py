@@ -10,11 +10,14 @@ All fetched data is saved to the local SQLite database via database.py.
 """
 
 import datetime
+import logging
 import math
 import re
 from typing import Any, Callable, Dict, List, Optional, Set
 
 from api_client import fetch_all
+
+logger = logging.getLogger(__name__)
 
 ProgressCallback = Callable[[Dict[str, Any]], None]
 
@@ -496,7 +499,7 @@ def fetch_fo_company(
             progress_callback=progress_callback,
         )
     except Exception as exc:
-        print(f"[WARN] FOCompany fetch failed: {exc}. Continuing with empty result.")
+        logger.warning("FOCompany fetch failed: %s. Continuing with empty result.", exc)
         _emit_progress(
             progress_callback,
             {

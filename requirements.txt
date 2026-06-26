@@ -8,6 +8,8 @@ lxml>=4.9.0
 signxml>=3.2.0
 cryptography>=41.0.0
 Flask>=2.3.0
+# sapsf-shared SDK - installed from sibling _shared/ dir
+-e ../_shared/.
 
 # MCP server (AI agent integration) - optional
 mcp>=1.0.0
