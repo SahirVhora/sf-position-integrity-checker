@@ -21,7 +21,11 @@ sf-position-integrity-checker/
 ├── reporters.py          # Output writers - HTML, Excel, CSV, run_manifest.json
 ├── database.py           # SQLite helpers - schema, upserts, audit views
 ├── config.py             # Credential resolution - .env, keyring, interactive prompt
+├── simulator.py          # Mode 2 simulation engine - pre-change impact analysis
+├── remediation.py        # Auto-remediation payload builder and dry-run writer
 ├── test_schema.py        # Offline test suite - no SF credentials needed
+├── test_simulator.py     # Offline tests for simulator (no OData calls)
+├── test_remediation.py   # Offline tests for remediation (no OData calls)
 ├── auth/
 │   ├── basic.py          # Basic Auth request handler
 │   └── oauth2.py         # OAuth2 SAML Bearer token handler (signed assertion + auto-refresh)
@@ -64,13 +68,13 @@ Run this after any major foundation change, as part of a periodic data health ch
 
 ---
 
-### 🔄 Mode 2 - Pre-Change Impact Analysis *(Coming Soon)*
+### 🔄 Mode 2 - Pre-Change Impact Analysis
 
 > *"If I change this foundation object, how many positions will break - and which ones?"*
 
-Before making a foundation change, know exactly what downstream impact it will have. The tool will let you simulate a proposed change and surface every affected Position and Job Information record - giving your team a remediation list before the change is applied, not after.
+Before making a foundation change, know exactly what downstream impact it will have. Simulate a proposed change against the locally cached extract and get a full impact report - newly failing positions, newly passing positions, and a per-check breakdown - before anything is touched in the live tenant.
 
-**Real-world scenarios this will handle:**
+**Real-world scenarios:**
 
 | Foundation Change | Impact Question |
 |---|---|
@@ -80,7 +84,39 @@ Before making a foundation change, know exactly what downstream impact it will h
 | Job Code Career Path updated | How many positions have a mismatched Career Path after the change? |
 | Division relinked to a different Business Unit | Which positions will fail the Division → BU alignment check? |
 
-This replaces what is currently a manual process - running multiple SF reports, cross-referencing in Excel, and hoping nothing was missed - with a single command that produces a structured impact report.
+**Usage (Python API):**
+
+```python
+from simulator import simulate_change
+
+result = simulate_change(
+    change={
+        "type": "reparent",           # or "field_change"
+        "entity_type": "departments", # departments, sub_departments, job_codes,
+                                      # divisions, business_units, cost_centers,
+                                      # companies, locations
+        "code": "DEPT-123",
+        "field": "cust_Division",
+        "old_value": "DIV-A",
+        "new_value": "DIV-B",
+    },
+    country="GBR",
+)
+
+print(result["net_impact"])        # positive = more failures
+print(result["newly_failing"])     # list of newly broken positions
+print(result["newly_passing"])     # list of positions this change fixes
+print(result["check_breakdown"])   # {"CHK-02": 14, "CHK-03": 3}
+```
+
+Supported change types:
+
+| type | What it does |
+|------|-------------|
+| `reparent` | Updates a navigation link on a foundation record (e.g. move a Department to a different Division). Affects CHK-01 to CHK-05. |
+| `field_change` | Updates a scalar field on a foundation record (e.g. change a Job Code's grade). Affects CHK-06 to CHK-09. |
+
+Zero OData calls are made. The simulation runs entirely against the local SQLite cache.
 
 ---
 
@@ -99,6 +135,44 @@ This replaces what is currently a manual process - running multiple SF reports, 
 | CHK-09 | Job Code Career Path must match Position's Career Path | HIGH |
 
 Rules are defined in `config/rules.yaml`. Each rule has an `enabled` flag and a `visible` flag - see [Customising rules](#customising-rules) for details.
+
+### Auto-Remediation Payload Generation
+
+For issues on CHK-01 to CHK-09, the tool can derive the correct value from the locally cached foundation data and generate an OData PATCH payload ready to apply back to the tenant.
+
+```python
+from remediation import build_remediation_pack, apply_remediation
+
+# Build payloads from an existing issues list + cached lookups + positions
+entries = build_remediation_pack(issues, lookups, positions)
+
+# Dry-run: writes output/remediation_pack_GBR_YYYYMMDD.json + .xlsx
+result = apply_remediation(entries, country="GBR", dry_run=True)
+
+print(result.total)    # total fixable issues
+print(result.skipped)  # issues skipped (blank source value, position not found, etc.)
+
+# Each entry includes:
+#   entry.payload      - OData PATCH body: {"code": "POS-123", "division": "DIV-B", "effectiveStartDate": "/Date(ms)/"}
+#   entry.confidence   - HIGH (one valid value) or MEDIUM (multiple valid values, first chosen)
+#   entry.new_value    - the corrected value
+```
+
+| Check | Position field corrected | Source |
+|-------|--------------------------|--------|
+| CHK-01 | `department` | Sub Department's `cust_Department` |
+| CHK-02 | `division` | Department's `cust_Division` |
+| CHK-03 | `businessUnit` | Division → BU junction |
+| CHK-04 | `company` | BU → Legal Entity junction |
+| CHK-05 | `costCenter` | Cost Centre → BU junction |
+| CHK-06 | `cust_JobFunction` | Job Code's `jobFunction` |
+| CHK-07 | `cust_jobSubFunction` | Job Code's `cust_jobsubfunction` |
+| CHK-08 | `cust_GlobalJobLevel` | Job Code's `grade` |
+| CHK-09 | `cust_CareerPath` | Job Code's `cust_careerPath` |
+
+CHK-10 to CHK-17 (foundation_active checks) are not auto-remediable - they require fixing the foundation record, not the position.
+
+`dry_run=True` is the default. No OData writes are made until `dry_run=False` is explicitly passed with a configured API client.
 
 ---
 
@@ -414,18 +488,23 @@ Changes take effect immediately on the next run - no restart needed.
 An offline test suite is included - no SF credentials needed:
 
 ```bash
-python test_schema.py
+pytest test_schema.py test_simulator.py test_remediation.py -v
 ```
 
-Tests cover: SQLite schema structure, CHECK constraints, date normalisation, junction table population, all integrity checks (CHK-01 to CHK-09 pass + fail cases), validation result persistence, audit SQL views, and pipe-separated junction saving.
+| Test file | Coverage |
+|-----------|---------|
+| `test_schema.py` | SQLite schema structure, CHECK constraints, date normalisation, junction table population, all integrity checks (CHK-01 to CHK-09 pass + fail cases), validation result persistence, audit SQL views. |
+| `test_simulator.py` | Mode 2 simulation: reparent causes new failures, reparent fixes existing failures, field_change breaks matching positions, zero impact on orphan entity, junction update, result structure, invalid entity/change type errors. |
+| `test_remediation.py` | All 9 check types generate correct payloads, HIGH vs MEDIUM confidence, skipped cases (position not found, blank source value), dry-run JSON + Excel output, apply result structure. |
 
 ---
 
 ## Roadmap
 
-- **Mode 2: Pre-Change Impact Analysis** - simulate a proposed foundation change (e.g. deactivate a Cost Centre, move a Sub Department) and surface every affected Position and Job Info record before the change is applied
+- **Mode 2 web UI** - expose the simulation engine and remediation pack builder via the Flask web interface (currently Python API only)
 - **Additional check types** - `not_null` rule type and custom expression checks via `rules.yaml`
 - **Multi-country parallel runs** - fan out across all active countries in a single execution
+- **Live apply** - `dry_run=False` path wired to the web UI with an explicit confirmation step
 
 ---
 
