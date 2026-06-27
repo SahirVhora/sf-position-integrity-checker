@@ -6,11 +6,11 @@ Run this frontend from the repository root, then open http://127.0.0.1:5000/ in 
 
 import contextlib
 import glob
+import logging
 import os
 import re
 import secrets
 import threading
-import traceback
 import uuid
 from datetime import date, datetime
 
@@ -131,6 +131,8 @@ REPORT_PATTERN = re.compile(r"position_integrity_([A-Z]{2,4})_(\d{8})\.html$")
 RUNS: dict[str, dict] = {}
 RUNS_LOCK = threading.Lock()
 MAX_PROGRESS_LOG = 50
+
+logger = logging.getLogger(__name__)
 
 app = Flask(__name__, template_folder="templates")
 app.config["SESSION_COOKIE_HTTPONLY"] = True
@@ -299,7 +301,7 @@ def _run_report_thread(run_id: str, country: str, mode: str, as_of_date_str: str
     except Exception as exc:
         error_message = str(exc) or "An unexpected error occurred while running the report."
         _fail_run(run_id, error_message)
-        traceback.print_exc()
+        logger.exception("Run %s failed (%s/%s)", run_id, country, mode)
 
 
 @app.route("/run-report", methods=["POST"])
@@ -678,7 +680,7 @@ def index():
                     "An unexpected error occurred while running the report. "
                     "Check the terminal output for details."
                 )
-                traceback.print_exc()
+                logger.exception("Unexpected error running report for %s", form.get("country"))
 
         report_links = _report_files()
 
