@@ -18,3 +18,4 @@ tmp_*.py
 htmlcov/
 venv/
 .secrets.json
+dist/
