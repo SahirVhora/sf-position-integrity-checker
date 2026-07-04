@@ -190,7 +190,9 @@ def main() -> None:
         "--port", type=int, default=8091, help="Port for SSE transport (default: 8091)"
     )
     parser.add_argument(
-        "--host", default="0.0.0.0", help="Host for SSE transport (default: 0.0.0.0)"
+        "--host",
+        default=os.getenv("HOST", "127.0.0.1"),
+        help="Host for SSE transport (default: 127.0.0.1)",
     )
     args = parser.parse_args()
 
