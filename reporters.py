@@ -6,6 +6,7 @@ import datetime
 import json
 import os
 import re
+from html import escape
 from collections import Counter
 from typing import Any
 
@@ -155,6 +156,8 @@ def build_findings_document(
                 },
             }
         )
+    from transformation_review import build_transformation_review
+
     document = {
         "schema": "sf-compass-findings/v1",
         "tool": "sf-position-integrity-checker",
@@ -170,6 +173,7 @@ def build_findings_document(
             "findings": len(findings),
             "by_severity": by_severity,
         },
+        "transformation_review": build_transformation_review(issues, total_positions),
         "findings": findings,
     }
     return document
@@ -398,11 +402,25 @@ def _build_html(
 
     issues = _normalise_dates(issues)
 
+    from transformation_review import build_transformation_review
+
+    review = build_transformation_review(issues, total_positions)
+    priority_label = review["priority"].replace("_", " ").title()
+    review_actions = "".join(
+        f"<li><strong>{escape(action['action'])}:</strong> {escape(action['detail'])}</li>"
+        for action in review["recommended_actions"]
+    )
+    review_clusters = "".join(
+        f"<li><strong>{escape(cluster['category'])}</strong> — {cluster['finding_count']} finding(s), "
+        f"checks {escape(', '.join(cluster['check_ids']))}</li>"
+        for cluster in review["root_cause_clusters"]
+    ) or "<li>No integrity exceptions detected.</li>"
+
     rows_html_parts = []
     for issue in issues:
         sev = issue.get("Severity", "")
         css = "critical" if sev == "CRITICAL" else "high"
-        cells = "".join(f"<td>{issue.get(c, '')}</td>" for c in COLUMNS)
+        cells = "".join(f"<td>{escape(str(issue.get(c, '')))}</td>" for c in COLUMNS)
         rows_html_parts.append(f'<tr class="{css}">{cells}</tr>')
     rows_html = "\n".join(rows_html_parts)
 
@@ -494,6 +512,13 @@ def _build_html(
     td, th {{ white-space: normal !important; max-width: none !important; }}
   }}
   .table-wrap {{ padding: 0 1.5rem 2rem; overflow-x: auto; }}
+  .review-panel {{ margin: 0 1.5rem 1rem; padding: 1rem 1.25rem; background: #fff;
+                   border-left: 5px solid #1f3864; border-radius: 6px;
+                   box-shadow: 0 1px 4px rgba(0,0,0,.1); }}
+  .review-panel h2 {{ color: #1f3864; margin-bottom: .4rem; }}
+  .review-grid {{ display: grid; grid-template-columns: repeat(auto-fit,minmax(260px,1fr)); gap: 1rem; }}
+  .review-panel ul {{ margin: .45rem 0 0 1.2rem; line-height: 1.5; }}
+  .review-note {{ color: #555; font-size: .82rem; margin-top: .75rem; }}
   table {{ border-collapse: collapse; width: 100%; background: #fff;
            box-shadow: 0 1px 4px rgba(0,0,0,.1); border-radius: 6px; overflow: hidden; }}
   thead tr {{ position: sticky; top: 0; z-index: 10; }}
@@ -558,6 +583,17 @@ def _build_html(
   </div>
   {f'''<div class="card status-other"><div class="num">{other_positions}</div><div class="lbl">Other Employee Status</div></div>''' if other_positions else ""}
 </div>
+
+<section class="review-panel" aria-labelledby="transformation-review-title">
+  <h2 id="transformation-review-title">Transformation Review</h2>
+  <p><strong>Priority:</strong> {priority_label} &nbsp;|&nbsp;
+     <strong>Impacted positions:</strong> {review['impacted_positions']} ({review['impacted_position_rate']:.1%})</p>
+  <div class="review-grid">
+    <div><h3>Root-cause clusters</h3><ul>{review_clusters}</ul></div>
+    <div><h3>Controlled next actions</h3><ol>{review_actions}</ol></div>
+  </div>
+  <p class="review-note"><strong>Human control:</strong> No automatic writeback. HR data and HRIS/SF owners must approve remediation. {escape(review['evidence_boundary'])}</p>
+</section>
 
 <div class="filters">
   <label>Severity

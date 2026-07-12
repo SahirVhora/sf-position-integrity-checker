@@ -1,11 +1,13 @@
 # SF Position Integrity Checker
 
-![Python 3.9+](https://img.shields.io/badge/python-3.9%2B-blue)
-![License: Apache 2.0](https://img.shields.io/badge/license-Apache%202.0-green)
+![Python 3.11+](https://img.shields.io/badge/python-3.11%2B-blue)
+![License: MIT](https://img.shields.io/badge/license-MIT-green)
 ![Platform: SAP SuccessFactors](https://img.shields.io/badge/platform-SAP%20SuccessFactors-0FAAFF)
 [![schema tests](https://github.com/SahirVhora/sf-position-integrity-checker/actions/workflows/schema-tests.yml/badge.svg)](https://github.com/SahirVhora/sf-position-integrity-checker/actions/workflows/schema-tests.yml)
 
 A Python tool that validates SAP SuccessFactors **Position** object data integrity by fetching positions and foundation objects via OData v2 and running cross-entity alignment checks. Available as a **web UI** (recommended) or as a **CLI**. Built for SAP SuccessFactors consultants and HR system administrators who need to catch hierarchy, job-code, and cost-centre misalignments before they cause payroll or reporting errors.
+
+Every run also produces a deterministic **Transformation Review**: prioritised root-cause clusters, potential business impacts, controlled next actions, required human approvals, and a machine-readable evidence boundary. It works offline and does not send tenant data to an AI provider.
 
 ---
 

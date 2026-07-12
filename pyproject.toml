@@ -36,6 +36,7 @@ py-modules = [
     "reporters",
     "database",
     "config",
+    "transformation_review",
 ]
 
 [tool.pytest.ini_options]
