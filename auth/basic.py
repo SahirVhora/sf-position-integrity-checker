@@ -9,6 +9,8 @@ Credential resolution order:
 
 import base64
 import os
+import stat
+import tempfile
 
 _KEYRING_SERVICE = "sf_position_integrity_checker"
 
@@ -56,9 +58,18 @@ def _prompt_credentials() -> tuple[str, str, str, str]:
             import json
 
             creds_file = os.path.join(os.path.dirname(__file__), "..", "config", "credentials.json")
+            tmp_path = None
+            replaced = False
             try:
-                os.makedirs(os.path.dirname(creds_file), exist_ok=True)
-                with open(creds_file, "w", encoding="utf-8") as f:
+                credentials_dir = os.path.dirname(creds_file)
+                os.makedirs(credentials_dir, exist_ok=True)
+                fd, tmp_path = tempfile.mkstemp(
+                    prefix=".credentials-", suffix=".tmp", dir=credentials_dir
+                )
+                os.fchmod(fd, 0o600)
+                if stat.S_IMODE(os.fstat(fd).st_mode) != 0o600:
+                    raise PermissionError("credential temporary file is not mode 0600")
+                with os.fdopen(fd, "w", encoding="utf-8") as f:
                     json.dump(
                         {
                             "base_url": url,
@@ -69,8 +80,24 @@ def _prompt_credentials() -> tuple[str, str, str, str]:
                         f,
                         indent=2,
                     )
+                os.replace(tmp_path, creds_file)
+                tmp_path = None
+                replaced = True
+                os.chmod(creds_file, 0o600)
+                if stat.S_IMODE(os.stat(creds_file).st_mode) != 0o600:
+                    raise PermissionError("credential file is not mode 0600")
                 print("  [OK] Credentials saved to config/credentials.json.")
             except Exception as exc:
+                if tmp_path:
+                    try:
+                        os.unlink(tmp_path)
+                    except OSError:
+                        pass
+                if replaced:
+                    try:
+                        os.unlink(creds_file)
+                    except OSError:
+                        pass
                 print(f"  [WARN] Could not save credentials: {exc}")
 
     return url, username, password, company

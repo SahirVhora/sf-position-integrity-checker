@@ -11,8 +11,11 @@ To store credentials in the OS keyring once:
     store_credentials_to_keyring()
 """
 
+import contextlib
 import json
 import os
+import stat
+import tempfile
 
 from dotenv import load_dotenv
 
@@ -137,13 +140,31 @@ def _load_file_creds() -> dict:
 
 
 def _save_file_creds(data: dict) -> None:
-    """Save credentials to the local file fallback."""
+    """Atomically save fallback credentials with owner-only permissions."""
+    tmp_path = None
+    replaced = False
     try:
         os.makedirs(os.path.dirname(_CREDS_FILE), exist_ok=True)
-        with open(_CREDS_FILE, "w", encoding="utf-8") as f:
+        fd, tmp_path = tempfile.mkstemp(prefix=".credentials-", suffix=".tmp", dir=os.path.dirname(_CREDS_FILE))
+        os.fchmod(fd, 0o600)
+        if stat.S_IMODE(os.fstat(fd).st_mode) != 0o600:
+            raise PermissionError("credential temporary file is not mode 0600")
+        with os.fdopen(fd, "w", encoding="utf-8") as f:
             json.dump(data, f, indent=2)
-    except Exception:
-        pass
+        os.replace(tmp_path, _CREDS_FILE)
+        tmp_path = None
+        replaced = True
+        os.chmod(_CREDS_FILE, 0o600)
+        if stat.S_IMODE(os.stat(_CREDS_FILE).st_mode) != 0o600:
+            raise PermissionError("credential file is not mode 0600")
+    except Exception as exc:
+        if tmp_path:
+            with contextlib.suppress(OSError):
+                os.unlink(tmp_path)
+        if replaced:
+            with contextlib.suppress(OSError):
+                os.unlink(_CREDS_FILE)
+        raise RuntimeError("Refusing to save credentials without mode 0600 protection") from exc
 
 
 def get_saved_auth_config() -> dict:
