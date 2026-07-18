@@ -1,0 +1,19 @@
+Metadata-Version: 2.4
+Name: sf-position-integrity-checker
+Version: 0.1.0
+Summary: Validates SAP SuccessFactors Position object data integrity via OData v2 checks
+Requires-Python: >=3.11
+License-File: LICENSE
+Requires-Dist: requests>=2.28.0
+Requires-Dist: openpyxl>=3.1.0
+Requires-Dist: pandas>=1.5.0
+Requires-Dist: python-dotenv>=1.0.0
+Requires-Dist: keyring>=24.0.0
+Requires-Dist: PyYAML>=6.0
+Requires-Dist: lxml>=4.9.0
+Requires-Dist: signxml>=3.2.0
+Requires-Dist: cryptography>=41.0.0
+Requires-Dist: Flask>=2.3.0
+Provides-Extra: mcp
+Requires-Dist: mcp>=1.0.0; extra == "mcp"
+Dynamic: license-file

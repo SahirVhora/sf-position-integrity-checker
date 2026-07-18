@@ -19,3 +19,7 @@ htmlcov/
 venv/
 .secrets.json
 dist/
+
+.audit-result.json
+.claude/settings.local.json
+.under-anything/

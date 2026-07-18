@@ -1,0 +1,2 @@
+[console_scripts]
+sf-position-integrity-checker = main:main

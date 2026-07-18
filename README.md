@@ -28,6 +28,11 @@ sf-position-integrity-checker/
 ├── test_schema.py        # Offline test suite - no SF credentials needed
 ├── test_simulator.py     # Offline tests for simulator (no OData calls)
 ├── test_remediation.py   # Offline tests for remediation (no OData calls)
+├── test_auth_basic.py    # Offline tests for Basic Auth handler
+├── test_odata_escape.py  # Offline tests for OData filter value escaping
+├── test_validators.py    # Offline tests for validator helpers
+├── mcp_server.py         # MCP server - exposes checks as MCP tools
+├── db_inspector.py       # Interactive SQLite inspector for the local cache
 ├── auth/
 │   ├── basic.py          # Basic Auth request handler
 │   └── oauth2.py         # OAuth2 SAML Bearer token handler (signed assertion + auto-refresh)
@@ -490,7 +495,7 @@ Changes take effect immediately on the next run - no restart needed.
 An offline test suite is included - no SF credentials needed:
 
 ```bash
-pytest test_schema.py test_simulator.py test_remediation.py -v
+pytest -v
 ```
 
 | Test file | Coverage |
@@ -498,6 +503,9 @@ pytest test_schema.py test_simulator.py test_remediation.py -v
 | `test_schema.py` | SQLite schema structure, CHECK constraints, date normalisation, junction table population, all integrity checks (CHK-01 to CHK-09 pass + fail cases), validation result persistence, audit SQL views. |
 | `test_simulator.py` | Mode 2 simulation: reparent causes new failures, reparent fixes existing failures, field_change breaks matching positions, zero impact on orphan entity, junction update, result structure, invalid entity/change type errors. |
 | `test_remediation.py` | All 9 check types generate correct payloads, HIGH vs MEDIUM confidence, skipped cases (position not found, blank source value), dry-run JSON + Excel output, apply result structure. |
+| `test_auth_basic.py` | Basic Auth request handler. |
+| `test_odata_escape.py` | OData filter value escaping. |
+| `test_validators.py` | Validator helper functions. |
 
 ---
 

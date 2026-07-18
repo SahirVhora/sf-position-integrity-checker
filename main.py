@@ -10,6 +10,7 @@ Interactive run-mode menu:
   [3] Only Extract        - Fetch from SF → save to DB (no validation)
 """
 
+import argparse
 import datetime
 import sys
 
@@ -151,19 +152,59 @@ def _do_validate(country: str, as_of_date: datetime.date | None = None) -> None:
 # ---------------------------------------------------------------------------
 
 
-def run() -> None:
-    _print_banner()
+def main() -> None:
+    parser = argparse.ArgumentParser(
+        prog="sf-position-integrity-checker",
+        description="Validates SAP SuccessFactors Position object data integrity.",
+    )
+    parser.add_argument(
+        "--version",
+        action="version",
+        version=f"%(prog)s {VERSION}",
+    )
+    parser.add_argument(
+        "--country",
+        help="Country code (e.g., CAN, USA, IND, NLD). If omitted, an interactive prompt is shown.",
+    )
+    parser.add_argument(
+        "--mode",
+        choices=["1", "2", "3"],
+        help="Run mode: 1=Extract & Validate, 2=Only Validate, 3=Only Extract. If omitted, an interactive prompt is shown.",
+    )
+    parser.add_argument(
+        "--as-of-date",
+        help="As-of date in YYYY-MM-DD format. If omitted, an interactive prompt is shown.",
+    )
+    args = parser.parse_args()
 
-    country = input("Enter country code (e.g., CAN, USA, IND, NLD): ").strip().upper()
-    database.set_country(country)
+    if args.country:
+        country = args.country.upper()
+        database.set_country(country)
+    else:
+        _print_banner()
+        country = input("Enter country code (e.g., CAN, USA, IND, NLD): ").strip().upper()
+        database.set_country(country)
+
+    if args.as_of_date:
+        try:
+            as_of_date = _parse_as_of_date(args.as_of_date)
+        except ValueError:
+            parser.error("Invalid --as-of-date format. Use YYYY-MM-DD.")
+    else:
+        as_of_date = _pick_as_of_date()
+
+    if args.mode:
+        mode = int(args.mode)
+    else:
+        mode = _pick_mode()
+
+    _run_with_mode(country, as_of_date, mode)
+
+
+def _run_with_mode(country: str, as_of_date: datetime.date, mode: int) -> None:
     _print_header(country)
-    as_of_date = _pick_as_of_date()
     print(f"  As-of Date     : {as_of_date.isoformat()}")
-    mode = _pick_mode()
 
-    # ------------------------------------------------------------------
-    # Mode 1 - Extract & Validate
-    # ------------------------------------------------------------------
     if mode == 1:
         from fetchers import run_full_extract
 
@@ -175,15 +216,9 @@ def run() -> None:
         )
         _do_validate(country, as_of_date=as_of_date)
 
-    # ------------------------------------------------------------------
-    # Mode 2 - Only Validate
-    # ------------------------------------------------------------------
     elif mode == 2:
         _do_validate(country, as_of_date=as_of_date)
 
-    # ------------------------------------------------------------------
-    # Mode 3 - Only Extract
-    # ------------------------------------------------------------------
     elif mode == 3:
         from fetchers import run_full_extract
 
@@ -195,10 +230,6 @@ def run() -> None:
         for entity, count in summary.items():
             print(f"  {entity:<{max_key}} : {count:>6} record(s)")
         print(f"\n[DONE] Data extracted and saved to ./data/sf_integrity_{country}.db\n")
-
-
-def main() -> None:
-    run()
 
 
 if __name__ == "__main__":
