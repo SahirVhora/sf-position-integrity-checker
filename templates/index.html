@@ -565,10 +565,11 @@
       const label = key === 'job_class_can'
         ? `Job Class ${activeCountry} Records`
         : SUMMARY_LABELS[key] || key;
-      tr.innerHTML = `
-        <td>${label}</td>
-        <td>${value}</td>
-      `;
+      const labelCell = document.createElement('td');
+      labelCell.textContent = String(label);
+      const valueCell = document.createElement('td');
+      valueCell.textContent = String(value);
+      tr.append(labelCell, valueCell);
       summaryRows.appendChild(tr);
     });
     summaryCard.classList.remove('hidden');

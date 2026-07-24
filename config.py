@@ -140,8 +140,9 @@ def _save_file_creds(data: dict) -> None:
     """Save credentials to the local file fallback."""
     try:
         os.makedirs(os.path.dirname(_CREDS_FILE), exist_ok=True)
+        safe_data = {key: value for key, value in data.items() if key != "password"}
         with open(_CREDS_FILE, "w", encoding="utf-8") as f:
-            json.dump(data, f, indent=2)
+            json.dump(safe_data, f, indent=2)
     except Exception:
         pass
 
@@ -267,7 +268,7 @@ def set_basic_auth_config(base_url: str, username: str, password: str, company_i
     _write_env_var("SF_AUTH_METHOD", "basic")
     _write_env_var("SF_ODATA_BASE_URL", base_url)
     _write_env_var("SF_USERNAME", username)
-    _write_env_var("SF_PASSWORD", password)
+    # Passwords remain in the OS keyring or current process; never persist them to .env.
     if company_id:
         _write_env_var("SF_COMPANY_ID", company_id)
     refresh_config()
