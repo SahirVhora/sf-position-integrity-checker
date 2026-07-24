@@ -53,50 +53,15 @@ def _prompt_credentials() -> tuple[str, str, str, str]:
         except Exception:
             pass
         if not saved:
-            import json
-
-            creds_file = os.path.join(os.path.dirname(__file__), "..", "config", "credentials.json")
-            try:
-                os.makedirs(os.path.dirname(creds_file), exist_ok=True)
-                with open(creds_file, "w", encoding="utf-8") as f:
-                    json.dump(
-                        {
-                            "base_url": url,
-                            "username": username,
-                            "password": password,
-                            "company_id": company,
-                        },
-                        f,
-                        indent=2,
-                    )
-                print("  [OK] Credentials saved to config/credentials.json.")
-            except Exception as exc:
-                print(f"  [WARN] Could not save credentials: {exc}")
+            print("  [WARN] OS keyring unavailable; credentials were not saved.")
 
     return url, username, password, company
-
-
-def _try_file_creds() -> tuple[str | None, str | None, str | None, str | None]:
-    """Try to load credentials from the file-based fallback."""
-    import json
-
-    creds_file = os.path.join(os.path.dirname(__file__), "..", "config", "credentials.json")
-    try:
-        with open(creds_file, encoding="utf-8") as f:
-            data = json.load(f)
-        url = data.get("base_url")
-        username = data.get("username")
-        password = data.get("password")
-        company = data.get("company_id")
-        return url, username, password, company
-    except Exception:
-        return None, None, None, None
 
 
 def resolve_basic_credentials(prompt: bool = True) -> tuple[str, str, str, str]:
     """
     Resolve (odata_base_url, username, password, company_id) from the first
-    available source: .env → keyring → file fallback → interactive prompt.
+    available source: .env → keyring → interactive prompt.
 
     If *prompt* is False and no non-interactive source has credentials, returns
     a tuple of empty strings instead of prompting. This lets `config` resolve
@@ -116,10 +81,6 @@ def resolve_basic_credentials(prompt: bool = True) -> tuple[str, str, str, str]:
     kr_url, kr_user, kr_pass, kr_company = _try_keyring()
     if kr_url and kr_user and kr_pass:
         return kr_url, kr_user, kr_pass, kr_company or ""
-
-    fc_url, fc_user, fc_pass, fc_company = _try_file_creds()
-    if fc_url and fc_user and fc_pass:
-        return fc_url, fc_user, fc_pass, fc_company or ""
 
     if not prompt:
         return "", "", "", ""
