@@ -1,0 +1,29 @@
+name: Security autofix
+
+on:
+  push:
+    branches: [agent/security-hardening]
+
+permissions:
+  contents: write
+
+jobs:
+  harden:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/security-hardening
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Apply assertion-guarded replacements
+        run: python scripts/apply_security_hardening.py
+      - name: Commit hardened files
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add templates/index.html config.py
+          git commit -m "Harden credential storage and summary rendering"
+          git push
