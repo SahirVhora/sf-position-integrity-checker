@@ -49,7 +49,7 @@ mcp = FastMCP(
 
 @mcp.tool(
     name="sf_position_checks",
-    description="List the position integrity validation rules (CHK-01 to CHK-09) with category, severity, and description. No data access - reads config/rules.yaml.",
+    description="List the position integrity validation rules (CHK-01 to CHK-17) with category, severity, and description. No data access - reads config/rules.yaml.",
 )
 def position_checks_tool() -> str:
     """Return all validation rules with their configuration."""

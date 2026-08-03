@@ -1,5 +1,5 @@
 """
-validators.py - Integrity checks CHK-01 to CHK-09 for positions.
+validators.py - Integrity checks CHK-01 to CHK-17 for positions.
 
 Check definitions are loaded from config/rules.yaml at import time.
 The rule engine supports three rule types:
