@@ -6,12 +6,13 @@ import datetime
 import json
 import os
 import re
-from html import escape
 from collections import Counter
+from html import escape
 from typing import Any
 
 import openpyxl
 import pandas as pd
+from assurance_adapter import write_position_assurance
 from openpyxl.styles import Alignment, Font, PatternFill
 from openpyxl.utils import get_column_letter
 
@@ -410,11 +411,14 @@ def _build_html(
         f"<li><strong>{escape(action['action'])}:</strong> {escape(action['detail'])}</li>"
         for action in review["recommended_actions"]
     )
-    review_clusters = "".join(
-        f"<li><strong>{escape(cluster['category'])}</strong> — {cluster['finding_count']} finding(s), "
-        f"checks {escape(', '.join(cluster['check_ids']))}</li>"
-        for cluster in review["root_cause_clusters"]
-    ) or "<li>No integrity exceptions detected.</li>"
+    review_clusters = (
+        "".join(
+            f"<li><strong>{escape(cluster['category'])}</strong> — {cluster['finding_count']} finding(s), "
+            f"checks {escape(', '.join(cluster['check_ids']))}</li>"
+            for cluster in review["root_cause_clusters"]
+        )
+        or "<li>No integrity exceptions detected.</li>"
+    )
 
     rows_html_parts = []
     for issue in issues:
@@ -587,12 +591,12 @@ def _build_html(
 <section class="review-panel" aria-labelledby="transformation-review-title">
   <h2 id="transformation-review-title">Transformation Review</h2>
   <p><strong>Priority:</strong> {priority_label} &nbsp;|&nbsp;
-     <strong>Impacted positions:</strong> {review['impacted_positions']} ({review['impacted_position_rate']:.1%})</p>
+     <strong>Impacted positions:</strong> {review["impacted_positions"]} ({review["impacted_position_rate"]:.1%})</p>
   <div class="review-grid">
     <div><h3>Root-cause clusters</h3><ul>{review_clusters}</ul></div>
     <div><h3>Controlled next actions</h3><ol>{review_actions}</ol></div>
   </div>
-  <p class="review-note"><strong>Human control:</strong> No automatic writeback. HR data and HRIS/SF owners must approve remediation. {escape(review['evidence_boundary'])}</p>
+  <p class="review-note"><strong>Human control:</strong> No automatic writeback. HR data and HRIS/SF owners must approve remediation. {escape(review["evidence_boundary"])}</p>
 </section>
 
 <div class="filters">
@@ -960,8 +964,8 @@ def write_all_reports(
 ) -> None:
     print(f"\n[REPORT] Writing output files to ./{OUTPUT_DIR}/")
     visible = _visible_issues(issues)
-    write_csv(visible, country)
-    write_excel(
+    csv_path = write_csv(visible, country)
+    excel_path = write_excel(
         visible,
         total_positions,
         country,
@@ -969,7 +973,7 @@ def write_all_reports(
         instance_id=instance_id,
         as_of_date=as_of_date,
     )
-    write_html(
+    html_path = write_html(
         visible,
         total_positions,
         country,
@@ -978,7 +982,7 @@ def write_all_reports(
         as_of_date=as_of_date,
     )
     write_fix_pack(visible, country)
-    write_findings_json(
+    findings_path = write_findings_json(
         visible,
         total_positions,
         country,
@@ -989,4 +993,14 @@ def write_all_reports(
         issues, total_positions, country, tenant_url=tenant_url, as_of_date=as_of_date
     )
     write_report_meta(country, instance_id)
+    assurance_path = write_position_assurance(
+        visible,
+        total_positions,
+        country,
+        as_of_date,
+        [csv_path, excel_path, html_path, findings_path],
+        OUTPUT_DIR,
+        VERSION,
+    )
+    print(f"  JSON -> {assurance_path}")
     print_console_summary(issues, total_positions, country, as_of_date=as_of_date)

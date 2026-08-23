@@ -36,9 +36,7 @@ def test_clean_review_recommends_monitoring():
 
 
 def test_zero_total_does_not_divide_by_zero():
-    review = build_transformation_review(
-        [_issue("P1", "CHK-08", "Job Code", "HIGH")], 0
-    )
+    review = build_transformation_review([_issue("P1", "CHK-08", "Job Code", "HIGH")], 0)
 
     assert review["impacted_position_rate"] == 0.0
     assert review["priority"] == "planned_remediation"

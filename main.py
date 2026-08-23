@@ -193,10 +193,7 @@ def main() -> None:
     else:
         as_of_date = _pick_as_of_date()
 
-    if args.mode:
-        mode = int(args.mode)
-    else:
-        mode = _pick_mode()
+    mode = int(args.mode) if args.mode else _pick_mode()
 
     _run_with_mode(country, as_of_date, mode)
 

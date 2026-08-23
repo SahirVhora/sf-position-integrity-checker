@@ -10,7 +10,6 @@ from __future__ import annotations
 from collections import Counter, defaultdict
 from typing import Any
 
-
 IMPACT_BY_CATEGORY = {
     "Hierarchy Alignment": [
         "organisation and headcount reporting",

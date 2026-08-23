@@ -13,7 +13,10 @@ import contextlib
 import datetime
 import logging
 import math
+import os
 import re
+import tempfile
+import threading
 from collections.abc import Callable
 from typing import Any
 
@@ -22,6 +25,7 @@ from api_client import fetch_all
 logger = logging.getLogger(__name__)
 
 ProgressCallback = Callable[[dict[str, Any]], None]
+_REFRESH_LOCK = threading.Lock()
 
 
 def _odata_escape(value: Any) -> str:
@@ -1326,6 +1330,56 @@ def fetch_empjob_for_positions(
 
 
 def run_full_extract(
+    country_code: str,
+    as_of_date: datetime.date | None = None,
+    progress_callback: ProgressCallback | None = None,
+) -> dict[str, int]:
+    """Refresh the country cache while preserving the last good extract on failure."""
+    import database
+
+    backup_path = None
+    backup_created = False
+
+    with _REFRESH_LOCK:
+        database.set_country(country_code)
+        live_path = database.DB_PATH
+        had_existing_database = os.path.exists(live_path)
+        try:
+            if had_existing_database:
+                backup_dir = os.path.dirname(os.path.abspath(live_path))
+                fd, backup_path = tempfile.mkstemp(
+                    prefix=f".{os.path.basename(live_path)}.",
+                    suffix=".refresh-backup",
+                    dir=backup_dir,
+                )
+                os.close(fd)
+                os.unlink(backup_path)
+                database.backup_database(backup_path)
+                backup_created = True
+
+            summary = _run_full_extract(
+                country_code,
+                as_of_date=as_of_date,
+                progress_callback=progress_callback,
+            )
+            if summary.get("positions", 0) == 0 and backup_created:
+                database.restore_database(backup_path)
+            return summary
+        except Exception:
+            if backup_created:
+                try:
+                    database.restore_database(backup_path)
+                except Exception:
+                    logger.exception(
+                        "Could not restore the previous database after extract failure"
+                    )
+            raise
+        finally:
+            if backup_path and os.path.exists(backup_path):
+                os.unlink(backup_path)
+
+
+def _run_full_extract(
     country_code: str,
     as_of_date: datetime.date | None = None,
     progress_callback: ProgressCallback | None = None,

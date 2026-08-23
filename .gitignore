@@ -23,3 +23,8 @@ dist/
 .audit-result.json
 .claude/settings.local.json
 .under-anything/
+
+# Audit 2026-07-30: tenant data stores / local SQLite caches - never commit
+*.db
+*.sqlite
+*.sqlite3

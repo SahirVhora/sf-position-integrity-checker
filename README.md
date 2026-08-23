@@ -17,9 +17,9 @@ Every run also produces a deterministic **Transformation Review**: prioritised r
 sf-position-integrity-checker/
 ├── main.py               # CLI entry point - interactive run-mode and date-picker menus
 ├── web_ui.py             # Flask web server - browser interface with live progress
-├── api_client.py         # HTTP layer - routes requests to basic.py or oauth2.py
+├── api_client.py         # HTTP layer - wraps sapsf_shared auth and SFClient
 ├── fetchers.py           # OData fetchers - two-phase position + foundation data pull
-├── validators.py         # Rule engine - loads rules.yaml, runs CHK-01 to CHK-09
+├── validators.py         # Rule engine - loads rules.yaml, runs CHK-01 to CHK-17
 ├── reporters.py          # Output writers - HTML, Excel, CSV, run_manifest.json
 ├── database.py           # SQLite helpers - schema, upserts, audit views
 ├── config.py             # Credential resolution - .env, keyring, interactive prompt
@@ -35,7 +35,8 @@ sf-position-integrity-checker/
 ├── db_inspector.py       # Interactive SQLite inspector for the local cache
 ├── auth/
 │   ├── basic.py          # Basic Auth request handler
-│   └── oauth2.py         # OAuth2 SAML Bearer token handler (signed assertion + auto-refresh)
+│   ├── oauth2.py         # OAuth2 SAML bearer-token handler
+│   └── __init__.py       # Thin compatibility wrapper around sapsf_shared auth
 ├── config/
 │   ├── rules.yaml        # Check definitions - enable/disable/hide individual rules
 │   └── credentials.json  # Web UI credential store (git-ignored)
@@ -140,6 +141,14 @@ Zero OData calls are made. The simulation runs entirely against the local SQLite
 | CHK-07 | Job Code Sub Family must match Position's Job Sub Family | HIGH |
 | CHK-08 | Job Code Grade must match Position's Global Job Level | HIGH |
 | CHK-09 | Job Code Career Path must match Position's Career Path | HIGH |
+| CHK-10 | Legal Entity must be active on selected run date | CRITICAL |
+| CHK-11 | Business Unit must be active on selected run date | CRITICAL |
+| CHK-12 | Division must be active on selected run date | CRITICAL |
+| CHK-13 | Department must be active on selected run date | CRITICAL |
+| CHK-14 | Sub Department must be active on selected run date | CRITICAL |
+| CHK-15 | Job Code must be active on selected run date | CRITICAL |
+| CHK-16 | Cost Centre must be active on selected run date | CRITICAL |
+| CHK-17 | Location must be active on selected run date | CRITICAL |
 
 Rules are defined in `config/rules.yaml`. Each rule has an `enabled` flag and a `visible` flag - see [Customising rules](#customising-rules) for details.
 
@@ -195,7 +204,7 @@ python3 mcp_server.py --transport sse --port 8091   # HTTP/SSE
 
 | Tool | What it does |
 |---|---|
-| `sf_position_checks` | List validation rules CHK-01 to CHK-09 with severity |
+| `sf_position_checks` | List validation rules CHK-01 to CHK-17 with severity |
 | `sf_validate_positions` | Validate the locally cached extract for a country, returns `sf-compass-findings/v1` JSON |
 | `sf_latest_findings` | Read the newest findings JSON from `./output` |
 | `sf_position_integrity_about` | Server info and data policy |
@@ -224,8 +233,8 @@ SF Tenant (OData v2)
   [Phase 3: Cache]       ──  Store everything in local SQLite - subsequent runs
         │                    can re-validate without re-fetching from SF
         │
-        ▼
-  [Phase 4: Rule Engine] ──  config/rules.yaml drives CHK-01 to CHK-09 (configurable)
+        ▼  [Phase 4: Rule Engine]  ──  config/rules.yaml drives CHK-01 to CHK-17 (configurable)
+
         │                    Each rule defines the relationship to validate,
         │                    which fields to compare, and the severity if it fails
         │
@@ -500,12 +509,12 @@ pytest -v
 
 | Test file | Coverage |
 |-----------|---------|
-| `test_schema.py` | SQLite schema structure, CHECK constraints, date normalisation, junction table population, all integrity checks (CHK-01 to CHK-09 pass + fail cases), validation result persistence, audit SQL views. |
+| `test_schema.py` | SQLite schema structure, CHECK constraints, date normalisation, junction table population, all integrity checks (CHK-01 to CHK-17 pass + fail cases), validation result persistence, audit SQL views. |
 | `test_simulator.py` | Mode 2 simulation: reparent causes new failures, reparent fixes existing failures, field_change breaks matching positions, zero impact on orphan entity, junction update, result structure, invalid entity/change type errors. |
 | `test_remediation.py` | All 9 check types generate correct payloads, HIGH vs MEDIUM confidence, skipped cases (position not found, blank source value), dry-run JSON + Excel output, apply result structure. |
 | `test_auth_basic.py` | Basic Auth request handler. |
 | `test_odata_escape.py` | OData filter value escaping. |
-| `test_validators.py` | Validator helper functions. |
+| `test_validators.py` | Validator helper functions and configured rule behavior. |
 
 ---
 

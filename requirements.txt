@@ -6,6 +6,7 @@ python-dotenv==1.2.2
 flask==3.1.3
 pyyaml==6.0.3
 mcp==1.28.1
+cryptography==50.0.0
 
 # Sibling project dependency
 sapsf-shared @ git+https://github.com/SahirVhora/sapsf-shared.git@91a4a1cccac5c1df66c215857e8a4b01608118ef

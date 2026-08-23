@@ -16,8 +16,9 @@ dependencies = [
     "PyYAML>=6.0",
     "lxml>=4.9.0",
     "signxml>=3.2.0",
-    "cryptography>=41.0.0",
+    "cryptography>=50.0.0,<51",
     "Flask>=2.3.0",
+    "sapsf-shared>=0.1.1",
 ]
 
 [project.optional-dependencies]
@@ -37,6 +38,7 @@ py-modules = [
     "database",
     "config",
     "transformation_review",
+    "assurance_adapter",
 ]
 
 [tool.pytest.ini_options]

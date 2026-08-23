@@ -16,6 +16,7 @@ in fetchers.py before saving).
 import os
 import re as _re
 import sqlite3
+import tempfile
 from datetime import date, datetime, timedelta
 from typing import Any
 
@@ -483,6 +484,93 @@ def get_connection(read_only: bool = False) -> sqlite3.Connection:
     conn.execute("PRAGMA journal_mode=WAL")
     conn.execute("PRAGMA foreign_keys=ON")
     return conn
+
+
+def _checkpoint_wal(path: str) -> None:
+    """Checkpoint a SQLite WAL before replacing its main database file."""
+    if not os.path.exists(path):
+        return
+    conn = sqlite3.connect(path)
+    try:
+        result = conn.execute("PRAGMA wal_checkpoint(TRUNCATE)").fetchone()
+        if result and result[0]:
+            raise RuntimeError(f"SQLite WAL checkpoint is busy for {path}")
+    finally:
+        conn.close()
+
+
+def _remove_wal_sidecars(path: str) -> None:
+    """Remove sidecars after a successful checkpoint and before file replacement."""
+    for suffix in ("-wal", "-shm"):
+        sidecar = f"{path}{suffix}"
+        if os.path.exists(sidecar):
+            os.unlink(sidecar)
+
+
+def backup_database(backup_path: str | os.PathLike[str]) -> None:
+    """Create a consistent SQLite backup of the active database file."""
+    backup_path = os.fspath(backup_path)
+    if os.path.abspath(backup_path) == os.path.abspath(DB_PATH):
+        raise ValueError("Backup path must differ from the active database path")
+    if not os.path.exists(DB_PATH):
+        raise FileNotFoundError(DB_PATH)
+    parent = os.path.dirname(os.path.abspath(backup_path))
+    os.makedirs(parent, exist_ok=True)
+    if os.path.exists(backup_path):
+        os.unlink(backup_path)
+
+    source = destination = None
+    try:
+        source = sqlite3.connect(DB_PATH)
+        _checkpoint_wal(DB_PATH)
+        destination = sqlite3.connect(backup_path)
+        source.backup(destination)
+        destination.commit()
+    except Exception:
+        if os.path.exists(backup_path):
+            os.unlink(backup_path)
+        raise
+    finally:
+        if destination is not None:
+            destination.close()
+        if source is not None:
+            source.close()
+
+
+def restore_database(backup_path: str | os.PathLike[str]) -> None:
+    """Atomically restore the active database from a SQLite backup file."""
+    backup_path = os.fspath(backup_path)
+    if not os.path.exists(backup_path):
+        raise FileNotFoundError(backup_path)
+
+    restore_dir = os.path.dirname(os.path.abspath(DB_PATH))
+    fd, restore_path = tempfile.mkstemp(
+        prefix=f".{os.path.basename(DB_PATH)}.",
+        suffix=".restore",
+        dir=restore_dir,
+    )
+    os.close(fd)
+    os.unlink(restore_path)
+
+    source = destination = None
+    try:
+        source = sqlite3.connect(backup_path)
+        destination = sqlite3.connect(restore_path)
+        source.backup(destination)
+        destination.commit()
+    finally:
+        if destination is not None:
+            destination.close()
+        if source is not None:
+            source.close()
+
+    try:
+        _checkpoint_wal(DB_PATH)
+        _remove_wal_sidecars(DB_PATH)
+        os.replace(restore_path, DB_PATH)
+    finally:
+        if os.path.exists(restore_path):
+            os.unlink(restore_path)
 
 
 def init_db() -> None:
