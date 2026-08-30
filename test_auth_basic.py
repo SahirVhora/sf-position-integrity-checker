@@ -10,8 +10,10 @@ Usage:
 """
 
 import base64
+import json
 import os
 import sys
+import types
 
 sys.path.insert(0, os.path.dirname(__file__))
 
@@ -79,6 +81,32 @@ class TestBasicAuthHeaders:
         headers = get_basic_auth_headers()
         decoded = base64.b64decode(headers["Authorization"].split(" ", 1)[1]).decode()
         assert decoded == "apiuser@ACME:secret"
+
+
+def test_basic_auth_password_is_process_only(clean_env, monkeypatch, tmp_path):
+    """Saving Basic Auth must not write the password to .env or JSON."""
+    import config
+
+    fake_keyring = types.SimpleNamespace(set_password=lambda *args: None)
+    monkeypatch.setitem(sys.modules, "keyring", fake_keyring)
+    monkeypatch.setattr(config, "_CREDS_FILE", str(tmp_path / "credentials.json"))
+    written_env_keys = []
+
+    def fake_write_env(key, value):
+        written_env_keys.append(key)
+        os.environ[key] = value
+
+    monkeypatch.setattr(config, "_write_env_var", fake_write_env)
+    monkeypatch.setattr(config, "refresh_config", lambda: None)
+
+    config.set_basic_auth_config(
+        "https://api4.successfactors.com", "apiuser", "top-secret", "ACME"
+    )
+
+    assert os.environ["SF_PASSWORD"] == "top-secret"
+    assert "SF_PASSWORD" not in written_env_keys
+    saved = json.loads((tmp_path / "credentials.json").read_text(encoding="utf-8"))
+    assert "password" not in saved
 
 
 def test_config_imports_without_prompt_when_unconfigured(clean_env, capsys):

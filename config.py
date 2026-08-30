@@ -3,7 +3,7 @@ config.py - Load credentials and configuration for SF Position Integrity Checker
 
 Credential resolution order for Basic Auth (first source that provides all required values wins):
   1. .env file  (existing behaviour - unaffected for current users)
-  2. OS keyring via the `keyring` library (with file-based fallback when keyring unavailable)
+  2. OS keyring via the `keyring` library
   3. Interactive prompt (offers to save to keyring for next time)
 
 To store credentials in the OS keyring once:
@@ -137,11 +137,12 @@ def _load_file_creds() -> dict:
 
 
 def _save_file_creds(data: dict) -> None:
-    """Save credentials to the local file fallback."""
+    """Save non-secret auth metadata, never passwords, to the local fallback."""
     try:
         os.makedirs(os.path.dirname(_CREDS_FILE), exist_ok=True)
+        safe_data = {key: value for key, value in data.items() if key != "password"}
         with open(_CREDS_FILE, "w", encoding="utf-8") as f:
-            json.dump(data, f, indent=2)
+            json.dump(safe_data, f, indent=2)
     except Exception:
         pass
 
@@ -149,8 +150,8 @@ def _save_file_creds(data: dict) -> None:
 def get_saved_auth_config() -> dict:
     """Return the currently saved auth configuration for display in the web UI.
 
-    Reads from OS keyring (with file-based fallback when keyring is unavailable)
-    so credentials set via the web UI are visible on the next page load.
+    Reads secrets from the OS keyring and non-secret metadata from the local
+    fallback so web UI settings remain visible without writing passwords to disk.
     """
     file_creds = _load_file_creds()
 
@@ -233,10 +234,9 @@ def get_saved_auth_config() -> dict:
 def set_basic_auth_config(base_url: str, username: str, password: str, company_id: str) -> None:
     """Save Basic Auth credentials and update module-level globals for the running process.
 
-    Stores in OS keyring (with file-based fallback when keyring is unavailable)
-    so the web UI can read them back via get_saved_auth_config() on the next load.
+    Stores the password in the OS keyring and current process only. Non-secret
+    metadata is retained in the file fallback for the web UI.
     """
-    keyring_ok = False
     try:
         import keyring as _kr
 
@@ -245,29 +245,27 @@ def set_basic_auth_config(base_url: str, username: str, password: str, company_i
         _kr.set_password(_KEYRING_SERVICE, "username", username)
         _kr.set_password(_KEYRING_SERVICE, "password", password)
         _kr.set_password(_KEYRING_SERVICE, "company_id", company_id or "")
-        keyring_ok = True
     except Exception:
-        pass  # keyring unavailable - fall through to file-based storage
+        pass  # Keyring unavailable; password remains process-only.
 
-    if not keyring_ok:
-        existing = _load_file_creds()
-        existing.update(
-            {
-                "auth_method": "basic",
-                "base_url": base_url,
-                "username": username,
-                "password": password,
-                "company_id": company_id or "",
-            }
-        )
-        _save_file_creds(existing)
+    existing = _load_file_creds()
+    existing.update(
+        {
+            "auth_method": "basic",
+            "base_url": base_url,
+            "username": username,
+            "company_id": company_id or "",
+        }
+    )
+    # Rewriting also scrubs passwords left by older versions.
+    _save_file_creds(existing)
 
-    # Also persist to .env so the credentials survive process restarts
-    # and are visible to the env-var-based get_saved_auth_config() reader.
+    # Persist only non-secret settings. Keep the submitted password in this
+    # process so refresh_config() can rebuild the active auth headers.
     _write_env_var("SF_AUTH_METHOD", "basic")
     _write_env_var("SF_ODATA_BASE_URL", base_url)
     _write_env_var("SF_USERNAME", username)
-    _write_env_var("SF_PASSWORD", password)
+    os.environ["SF_PASSWORD"] = password
     if company_id:
         _write_env_var("SF_COMPANY_ID", company_id)
     refresh_config()
