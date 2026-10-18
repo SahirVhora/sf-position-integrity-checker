@@ -18,7 +18,7 @@ dependencies = [
     "signxml>=3.2.0",
     "cryptography>=50.0.0,<51",
     "Flask>=2.3.0",
-    "sapsf-shared>=0.1.1",
+    "sapsf-shared @ git+https://github.com/SahirVhora/sapsf-shared.git@da247058792dd30cfed282fd2001b7aaa5a34ff2",
 ]
 
 [project.optional-dependencies]
@@ -28,6 +28,7 @@ mcp = ["mcp>=1.0.0"]
 sf-position-integrity-checker = "main:main"
 
 [tool.setuptools]
+packages = ["auth", "sf_position_integrity_resources"]
 py-modules = [
     "main",
     "web_ui",
@@ -39,8 +40,15 @@ py-modules = [
     "config",
     "transformation_review",
     "assurance_adapter",
+    "simulator",
+    "remediation",
+    "db_inspector",
+    "mcp_server",
 ]
 
 [tool.pytest.ini_options]
 testpaths = ["."]
 python_files = ["test_*.py"]
+
+[tool.setuptools.package-data]
+sf_position_integrity_resources = ["*.yaml", "templates/*.html"]
