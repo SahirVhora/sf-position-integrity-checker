@@ -22,7 +22,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-mcp = ["mcp>=1.0.0"]
+mcp = ["mcp>=1.30.0,<2"]
 
 [project.scripts]
 sf-position-integrity-checker = "main:main"
