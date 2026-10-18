@@ -28,3 +28,10 @@ dist/
 *.db
 *.sqlite
 *.sqlite3
+
+# Generated build and workspace files
+*.egg-info/
+build/
+.worktrees/
+.understand-anything/
+dist/

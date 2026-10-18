@@ -49,7 +49,7 @@ mcp = FastMCP(
 
 @mcp.tool(
     name="sf_position_checks",
-    description="List the position integrity validation rules (CHK-01 to CHK-17) with category, severity, and description. No data access - reads config/rules.yaml.",
+    description="List the position integrity validation rules (CHK-01 to CHK-17) with category, severity, and description. No data access - reads sf_position_integrity_resources/rules.yaml.",
 )
 def position_checks_tool() -> str:
     """Return all validation rules with their configuration."""
@@ -107,7 +107,9 @@ def validate_positions_tool(country: str, as_of_date: str = "") -> str:
                 indent=2,
             )
         target_date = (
-            datetime.date.fromisoformat(as_of_date) if as_of_date else datetime.date.today()
+            datetime.date.fromisoformat(as_of_date)
+            if as_of_date
+            else datetime.date.today()
         )
         positions = database.load_table("positions")
         lookups = build_lookups_from_db()
@@ -141,7 +143,9 @@ def latest_findings_tool(country: str = "") -> str:
         reverse=True,
     )
     if not files:
-        return json.dumps({"error": f"No findings files match {pattern} in ./output."}, indent=2)
+        return json.dumps(
+            {"error": f"No findings files match {pattern} in ./output."}, indent=2
+        )
     return Path(files[0]).read_text(encoding="utf-8")
 
 
@@ -179,7 +183,9 @@ def main() -> None:
     """Run the MCP server on stdio (default) or SSE."""
     import argparse
 
-    parser = argparse.ArgumentParser(description="SF Position Integrity Checker - MCP Server")
+    parser = argparse.ArgumentParser(
+        description="SF Position Integrity Checker - MCP Server"
+    )
     parser.add_argument(
         "--transport",
         choices=["stdio", "sse"],

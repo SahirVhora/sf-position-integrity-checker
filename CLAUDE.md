@@ -15,7 +15,7 @@
 
 CLI + optional web UI that validates SAP SuccessFactors Employee Central position
 data integrity by calling OData v2 APIs via `sapsf_shared.SFClient`, running rules
-loaded from `config/rules.yaml`, storing extracted data in a local per-country SQLite
+loaded from `sf_position_integrity_resources/rules.yaml`, storing extracted data in a local per-country SQLite
 DB, and producing HTML + Excel reports plus a remediation workflow.
 
 Target user: SF EC consultant running pre-go-live or post-migration data audits.
@@ -31,14 +31,14 @@ sf-position-integrity-checker/
 ├── mcp_server.py             ← MCP server exposing checks as tools
 ├── api_client.py             ← wraps sapsf_shared.AuthConfig / SFClient / SFClientError
 ├── fetchers.py                ← OData pulls per entity, builds records for the DB
-├── validators.py               ← runs CHK-01..CHK-17 from config/rules.yaml
+├── validators.py               ← runs CHK-01..CHK-17 from sf_position_integrity_resources/rules.yaml
 ├── database.py                  ← SQLite store, one DB per country: ./data/sf_integrity_{COUNTRY}.db
 ├── db_inspector.py               ← read-only DB inspection helpers
 ├── reporters.py                    ← HTML + Excel report generation (uses pandas)
 ├── remediation.py                   ← remediation workflow/report
 ├── transformation_review.py          ← review helper
 ├── simulator.py                       ← synthetic-data simulator for demos/tests
-├── config.py, config/rules.yaml        ← runtime config + the CHK rule definitions
+├── config.py, sf_position_integrity_resources/rules.yaml        ← runtime config + the CHK rule definitions
 ├── auth/                                ← thin wrapper, delegates to sapsf_shared auth
 ├── templates/                            ← HTML report template(s)
 └── test_*.py                              ← pytest tests, flat at repo root (no tests/ dir)
@@ -50,17 +50,17 @@ sf-position-integrity-checker/
 
 ### Check identifier format
 `CHK-NN`, currently **CHK-01 through CHK-17** (not CHK-09 — that was an early-draft
-range some docstrings still quote; grep `config/rules.yaml` for the live set before
+range some docstrings still quote; grep `sf_position_integrity_resources/rules.yaml` for the live set before
 assuming a range). New checks continue the sequence. Never reuse an identifier.
 
 ### Severity values
-Two values found in `config/rules.yaml` today: `CRITICAL` and `HIGH`. There is no
+Two values found in `sf_position_integrity_resources/rules.yaml` today: `CRITICAL` and `HIGH`. There is no
 `PASS/WARN/FAIL/ERROR` enum in this repo — don't reintroduce it. If you need a
 "the check ran fine" state, check how `validators.py` / `reporters.py` represent a
 clean result before inventing a new field.
 
 ### Rules are YAML, not hardcoded
-Rule definitions live in `config/rules.yaml`, loaded by `validators.py` at import
+Rule definitions live in `sf_position_integrity_resources/rules.yaml`, loaded by `validators.py` at import
 time (`_RULES_PATH`). Rule types supported: `scalar_match`, `set_membership`,
 `not_null` (declared but not yet used by any rule). Never hardcode a rule directly
 in Python — add/edit the YAML entry instead.
@@ -120,7 +120,7 @@ Flags (all optional — omitting any of them drops into an interactive prompt):
 
 Web UI: `python web_ui.py`. MCP server: `python mcp_server.py` (or
 `run_mcp_server.sh`) — lists the CHK-01..CHK-17 rules with category/severity/
-description, reading `config/rules.yaml`, no data access.
+description, reading `sf_position_integrity_resources/rules.yaml`, no data access.
 
 ---
 
@@ -137,7 +137,7 @@ there is no `tests/` subdirectory or `test_chkNN.py`-per-check convention. Run:
 ## Common tasks — how to do them correctly
 
 ### Add a new check (e.g. CHK-18)
-1. Add a `CHK-18` block to `config/rules.yaml`
+1. Add a `CHK-18` block to `sf_position_integrity_resources/rules.yaml`
 2. Confirm `validators.py`'s generic rule engine can express it via
    `scalar_match` / `set_membership` / `not_null` — only add new Python logic in
    `validators.py` if the existing rule types can't express the check
