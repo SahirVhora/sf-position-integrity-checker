@@ -99,9 +99,7 @@ def test_basic_auth_password_is_process_only(clean_env, monkeypatch, tmp_path):
     monkeypatch.setattr(config, "_write_env_var", fake_write_env)
     monkeypatch.setattr(config, "refresh_config", lambda: None)
 
-    config.set_basic_auth_config(
-        "https://api4.successfactors.com", "apiuser", "top-secret", "ACME"
-    )
+    config.set_basic_auth_config("https://api4.successfactors.com", "apiuser", "top-secret", "ACME")
 
     assert os.environ["SF_PASSWORD"] == "top-secret"
     assert "SF_PASSWORD" not in written_env_keys
