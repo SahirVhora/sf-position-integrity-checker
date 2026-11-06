@@ -13,3 +13,12 @@ repos:
       - id: ruff
         args: [--fix]
       - id: ruff-format
+
+  - repo: local
+    hooks:
+      - id: sapsf-secret-check
+        name: Reject credentials and scan for secrets (offline)
+        entry: python .github/scripts/check_secrets.py
+        language: python
+        additional_dependencies: [detect-secrets==1.5.0]
+        exclude: '(^|/)(node_modules|vendor|\.next|dist|dist-standalone|build)/'
