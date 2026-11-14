@@ -150,7 +150,7 @@ Zero OData calls are made. The simulation runs entirely against the local SQLite
 | CHK-16 | Cost Centre must be active on selected run date | CRITICAL |
 | CHK-17 | Location must be active on selected run date | CRITICAL |
 
-Rules are defined in `config/rules.yaml`. Each rule has an `enabled` flag and a `visible` flag - see [Customising rules](#customising-rules) for details.
+Rules are defined in `sf_position_integrity_resources/rules.yaml`. Each rule has an `enabled` flag and a `visible` flag - see [Customising rules](#customising-rules) for details.
 
 ### Auto-Remediation Payload Generation
 
@@ -233,7 +233,7 @@ SF Tenant (OData v2)
   [Phase 3: Cache]       ──  Store everything in local SQLite - subsequent runs
         │                    can re-validate without re-fetching from SF
         │
-        ▼  [Phase 4: Rule Engine]  ──  config/rules.yaml drives CHK-01 to CHK-17 (configurable)
+        ▼  [Phase 4: Rule Engine]  ──  sf_position_integrity_resources/rules.yaml drives CHK-01 to CHK-17 (configurable)
 
         │                    Each rule defines the relationship to validate,
         │                    which fields to compare, and the severity if it fails
@@ -431,7 +431,7 @@ The web UI validates credentials against the SF instance on every save and retur
 
 ## Customising rules
 
-Rules are defined in `config/rules.yaml`. Each rule supports two independent control flags:
+Rules are defined in `sf_position_integrity_resources/rules.yaml`. Each rule supports two independent control flags:
 
 | Flag | Behaviour |
 |------|-----------|
@@ -487,7 +487,7 @@ Changes take effect immediately on the next run - no restart needed.
 
 ## Customising foundation objects
 
-`config/foundation.yaml` maps SF entity names and field names to the tool's internal model. If your SF instance uses different custom field names (e.g. `cust_Division2` instead of `cust_Division`), edit this file rather than touching Python. The `fetchers.py` module reads this configuration to know which OData entities and `$select`/`$expand` parameters to request.
+`sf_position_integrity_resources/foundation.yaml` maps SF entity names and field names to the tool's internal model. If your SF instance uses different custom field names (e.g. `cust_Division2` instead of `cust_Division`), edit this file rather than touching Python. The `fetchers.py` module reads this configuration to know which OData entities and `$select`/`$expand` parameters to request.
 
 ---
 

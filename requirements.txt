@@ -5,11 +5,11 @@ pandas==3.0.3
 python-dotenv==1.2.2
 flask==3.1.3
 pyyaml==6.0.3
-mcp==1.28.1
+mcp==1.30.0
 cryptography==50.0.0
 
 # Sibling project dependency
-sapsf-shared @ git+https://github.com/SahirVhora/sapsf-shared.git@91a4a1cccac5c1df66c215857e8a4b01608118ef
+sapsf-shared @ git+https://github.com/SahirVhora/sapsf-shared.git@da247058792dd30cfed282fd2001b7aaa5a34ff2
 
 # Development / testing
 pytest==9.1.1

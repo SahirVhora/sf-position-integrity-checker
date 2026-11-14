@@ -13,6 +13,7 @@ import secrets
 import threading
 import uuid
 from datetime import date, datetime
+from importlib.resources import files
 
 import config
 import database
@@ -134,7 +135,7 @@ MAX_PROGRESS_LOG = 50
 
 logger = logging.getLogger(__name__)
 
-app = Flask(__name__, template_folder="templates")
+app = Flask(__name__, template_folder=str(files("sf_position_integrity_resources").joinpath("templates")))
 app.config["SESSION_COOKIE_HTTPONLY"] = True
 app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
 app.config["SESSION_COOKIE_SECURE"] = os.environ.get("HTTPS", "") == "1"

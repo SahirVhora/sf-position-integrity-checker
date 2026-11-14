@@ -45,3 +45,9 @@ jobs:
 
       - name: Run schema tests
         run: python3 -m pytest -q
+
+      - name: Verify installed wheel outside checkout
+        run: |
+          pip wheel --no-deps --wheel-dir dist .
+          pip install --no-deps --force-reinstall dist/*.whl
+          cd /tmp && python -c 'import config, validators, web_ui; assert web_ui.app.test_client().get("/").status_code == 200'

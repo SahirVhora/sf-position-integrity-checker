@@ -1,7 +1,7 @@
 """
 validators.py - Integrity checks CHK-01 to CHK-17 for positions.
 
-Check definitions are loaded from config/rules.yaml at import time.
+Check definitions are loaded from sf_position_integrity_resources/rules.yaml at import time.
 The rule engine supports three rule types:
   scalar_match   - look up a foundation record and compare a field
   set_membership - check membership in a junction-table set
@@ -13,8 +13,8 @@ false existence errors are raised.
 """
 
 import datetime
-import os
 import re
+from importlib.resources import files
 from typing import Any
 
 import yaml
@@ -23,7 +23,7 @@ import yaml
 # Load rules from YAML
 # ---------------------------------------------------------------------------
 
-_RULES_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "config", "rules.yaml")
+_RULES_PATH = files("sf_position_integrity_resources").joinpath("rules.yaml")
 
 with open(_RULES_PATH, encoding="utf-8") as _f:
     _rules_data = yaml.safe_load(_f)
@@ -259,7 +259,7 @@ def validate_positions(
     as_of_date: datetime.date | None = None,
 ) -> list[dict[str, Any]]:
     """
-    Run all enabled rules from config/rules.yaml against every position.
+    Run all enabled rules from sf_position_integrity_resources/rules.yaml against every position.
     Returns a flat list of issue dicts (one per failed check per position).
 
     Supports rule types: scalar_match, set_membership.
