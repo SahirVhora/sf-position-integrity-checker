@@ -8,6 +8,7 @@ Public API preserved for backward compatibility.
 from __future__ import annotations
 
 import logging
+import threading
 from typing import Any
 
 import config
@@ -35,10 +36,38 @@ def _build_auth_config() -> AuthConfig:
     return cfg
 
 
+_client: SFClient | None = None
+_client_key: tuple | None = None
+_client_lock = threading.Lock()
+
+
 def _get_client() -> SFClient:
-    """Create an SFClient from current config. Reuse where possible."""
+    """Return a shared SFClient for the current config.
+
+    One client (and its keep-alive connection pool) serves every call, so
+    per-record lookups do not pay a new TCP/TLS handshake each. The client is
+    rebuilt when the connection settings change, e.g. after the web UI saves
+    new credentials.
+    """
+    global _client, _client_key
     cfg = _build_auth_config()
-    return SFClient(cfg, default_top=config.PAGE_SIZE)
+    key = (
+        cfg.base_url,
+        cfg.company_id,
+        cfg.auth_type,
+        cfg.username,
+        cfg.password,
+        cfg.client_id,
+        cfg.token_url,
+        config.PAGE_SIZE,
+    )
+    with _client_lock:
+        if _client is None or key != _client_key:
+            if _client is not None:
+                _client.close()
+            _client = SFClient(cfg, default_top=config.PAGE_SIZE)
+            _client_key = key
+        return _client
 
 
 def _build_url(entity: str, params: dict[str, str]) -> str:
