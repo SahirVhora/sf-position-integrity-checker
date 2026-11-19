@@ -12,11 +12,15 @@ To store credentials in the OS keyring once:
 """
 
 import json
+import logging
 import os
+import tempfile
+from pathlib import Path
 
 from dotenv import load_dotenv
 
 load_dotenv()
+logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
 # Auth method
@@ -127,6 +131,28 @@ _KEYRING_SERVICE = "sf_position_integrity_checker"
 _CREDS_FILE = os.path.join(os.path.dirname(__file__), "config", "credentials.json")
 
 
+def _write_owner_only(path: str, content: str) -> None:
+    """Atomically write a local credential file with owner-only permissions."""
+    destination = Path(path)
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    fd, temporary_name = tempfile.mkstemp(
+        prefix=f".{destination.name}.", suffix=".tmp", dir=destination.parent
+    )
+    temporary = Path(temporary_name)
+    try:
+        os.fchmod(fd, 0o600)
+        with os.fdopen(fd, "w", encoding="utf-8") as handle:
+            fd = -1
+            handle.write(content)
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.replace(temporary, destination)
+    finally:
+        if fd >= 0:
+            os.close(fd)
+        temporary.unlink(missing_ok=True)
+
+
 def _load_file_creds() -> dict:
     """Load credentials from the local file fallback."""
     try:
@@ -139,12 +165,10 @@ def _load_file_creds() -> dict:
 def _save_file_creds(data: dict) -> None:
     """Save non-secret auth metadata, never passwords, to the local fallback."""
     try:
-        os.makedirs(os.path.dirname(_CREDS_FILE), exist_ok=True)
         safe_data = {key: value for key, value in data.items() if key != "password"}
-        with open(_CREDS_FILE, "w", encoding="utf-8") as f:
-            json.dump(safe_data, f, indent=2)
-    except Exception:
-        pass
+        _write_owner_only(_CREDS_FILE, json.dumps(safe_data, indent=2))
+    except OSError as exc:
+        logger.warning("Could not persist local credential fallback: %s", exc)
 
 
 def get_saved_auth_config() -> dict:
@@ -363,18 +387,22 @@ def _env_file_path() -> str:
 
 def _write_env_var(key: str, value: str) -> None:
     os.environ[key] = value
+    env_path = _env_file_path()
     try:
         from dotenv import set_key
 
-        env_path = _env_file_path()
         if not os.path.exists(env_path):
-            open(env_path, "a", encoding="utf-8").close()
+            _write_owner_only(env_path, "")
+        else:
+            os.chmod(env_path, 0o600)
         set_key(env_path, key, value)
+        os.chmod(env_path, 0o600)
         return
-    except Exception:
-        pass
+    except OSError as exc:
+        logger.warning("Could not update .env with python-dotenv: %s", exc)
+    except Exception as exc:
+        logger.warning("Could not update .env with python-dotenv: %s", exc)
 
-    env_path = _env_file_path()
     lines = []
     if os.path.exists(env_path):
         with open(env_path, encoding="utf-8") as fh:
@@ -387,8 +415,7 @@ def _write_env_var(key: str, value: str) -> None:
             break
     if not found:
         lines.append(f"{key}={value}\n")
-    with open(env_path, "w", encoding="utf-8") as fh:
-        fh.writelines(lines)
+    _write_owner_only(env_path, "".join(lines))
 
 
 def refresh_config() -> None:

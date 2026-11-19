@@ -979,6 +979,45 @@ def _parse_jobcode_subfunction_response(data: dict[str, Any]) -> str | None:
     return None
 
 
+def _bulk_jobcode_subfunctions(job_code_records: list[dict]) -> dict[tuple, str | None]:
+    """Resolve cust_jobsubfunction for many job codes with batched $expand queries.
+
+    Returns {(externalCode, startDate): sub_function_code_or_None} only for
+    records whose navigation property came back expanded. A record missing
+    from the response, or returned as a __deferred link, is left out so the
+    caller's per-record lookup still decides it. Any batch failure yields an
+    empty result for that batch rather than an error.
+    """
+    from api_client import fetch_all
+
+    codes = sorted(
+        {str(rec["externalCode"]) for rec in job_code_records if rec.get("externalCode")}
+    )
+    resolved: dict[tuple, str | None] = {}
+    for start in range(0, len(codes), _CODE_BATCH_SIZE):
+        batch = codes[start : start + _CODE_BATCH_SIZE]
+        code_clause = " or ".join(f"externalCode eq '{_odata_escape(c)}'" for c in batch)
+        try:
+            raw_records = fetch_all(
+                entity="FOJobCode",
+                select_fields=["externalCode", "startDate", "cust_jobsubfunction"],
+                expand_fields=["cust_jobsubfunction"],
+                filter_expr=code_clause,
+            )
+        except Exception as exc:
+            print(
+                f"  [WARN] Batched job sub function query failed: {exc}. Using per-record lookup."
+            )
+            continue
+        for raw in raw_records:
+            nav = raw.get("cust_jobsubfunction")
+            if isinstance(nav, dict) and "__deferred" in nav:
+                continue
+            key = (raw.get("externalCode"), raw.get("startDate"))
+            resolved[key] = _normalize_record(raw).get("cust_jobsubfunction")
+    return resolved
+
+
 def fetch_jobcode_subfunctions(
     job_code_records: list[dict],
     progress_callback: ProgressCallback | None = None,
@@ -1064,9 +1103,25 @@ def fetch_jobcode_subfunctions(
                     print(f"  [WARN] Fallback fetch failed for {jc_code}: {fallback_exc}")
                     return (jc_code, None)
 
+        # One $expand query per batch of codes resolves most records; only the
+        # records it cannot confirm fall through to the per-record calls below.
+        bulk = _bulk_jobcode_subfunctions(job_code_records)
+        pending = []
+        for rec in job_code_records:
+            code = rec.get("externalCode")
+            key = (code, rec.get("startDate"))
+            if code is not None and key in bulk:
+                result[code] = bulk[key]
+            else:
+                pending.append(rec)
+        print(
+            f"  ... {total - len(pending)}/{total} resolved by batched query; "
+            f"{len(pending)} need per-record lookup"
+        )
+
         with concurrent.futures.ThreadPoolExecutor(max_workers=10) as executor:
-            futures = {executor.submit(_fetch_one, rec): rec for rec in job_code_records}
-            done = 0
+            futures = {executor.submit(_fetch_one, rec): rec for rec in pending}
+            done = total - len(pending)
             for future in concurrent.futures.as_completed(futures):
                 jc_code, sub_code = future.result()
                 if jc_code:
