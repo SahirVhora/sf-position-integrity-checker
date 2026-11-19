@@ -1108,9 +1108,10 @@ def fetch_jobcode_subfunctions(
         bulk = _bulk_jobcode_subfunctions(job_code_records)
         pending = []
         for rec in job_code_records:
-            key = (rec.get("externalCode"), rec.get("startDate"))
-            if key in bulk:
-                result[key[0]] = bulk[key]
+            code = rec.get("externalCode")
+            key = (code, rec.get("startDate"))
+            if code is not None and key in bulk:
+                result[code] = bulk[key]
             else:
                 pending.append(rec)
         print(
